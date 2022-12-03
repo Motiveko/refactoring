@@ -1,12 +1,14 @@
 
 function statement(invoice, plays) {
-  return renderPlainText(invoice, plays);
+  const statementData = {};
+  statementData.customer = invoice.customer;
+  return renderPlainText(statementData, invoice, plays);
 }
 
 export {statement};
 
-function renderPlainText(invoice, plays) {
-  let result = `청구 내역 (고객명: ${invoice.customer})\n`;
+function renderPlainText(data, invoice, plays) {
+  let result = `청구 내역 (고객명: ${data.customer})\n`;
 
   for (let perf of invoice.performances) {
     playFor(perf);
