@@ -44,3 +44,69 @@
   - 함수 이름 짓기는 매우 중요하다. 함수 본문을 읽지 않고도 무슨 일을 하는지 알 수 있도록 해야 한다.
   - 이 함수의 핵심은 **화폐 단위 맞추기**다. 이름을 `usd()`라고 변경하고, 단위 변환 로직도 포함하였다.
     - Intl.NumberFormat().format 함수의 사용을 매우 좁게 해서 명확한 역할을 가지게 했다고 볼 수 있을듯..
+
+<br>
+
+
+- 반복문 쪼개기
+  - for문 내에서 volumeCredits을 계산해서 계속 임시 로컬 변수에 누적하는 코드에서, 로컬 변수를 제거하는건 어렵다. 어떻게 해야 할까?
+
+    1. 로컬 변수를 제거하려면, ***`반복문 쪼개기`를 통해 for문 내 volumeCredit 계산 부분만 분리한 for문을 만들어 줘야 한다!***
+    ```js
+    // AS-IS
+    for (let perf of invoice.performances) {
+      playFor(perf);
+      amountFor(perf);
+      volumeCredits += volumeCreditsFor(perf);
+      result += `${playFor(perf).name}: ${usd(amountFor(perf))} (${
+        perf.audience
+      }석)\n`;
+      totalAmount += amountFor(perf);
+    }
+    // TO-BE
+    for (let perf of invoice.performances) {
+      playFor(perf);
+      amountFor(perf);
+      result += `${playFor(perf).name}: ${usd(amountFor(perf))} (${
+        perf.audience
+      }석)\n`;
+      totalAmount += amountFor(perf);
+    }
+
+    for (let perf of invoice.performances) {
+      volumeCredits += volumeCreditsFor(perf);  
+    }
+    ```
+
+    <br>
+
+    2. 그 뒤 `문장 슬라이드하기`를 통해 `volumeCredits`변수 선언을 쪼갠 반복문 바로 앞으로 옮겨준다.
+    ```js
+    let volumeCredits = 0;
+    for (let perf of invoice.performances) {
+      volumeCredits += volumeCreditsFor(perf);  
+    }
+    ```
+
+    <br>
+
+    3. volumeCredits 선언과 갱신이 한데 모이면 `임시 변수를 질의 함수로 바꾸기`가 쉬워진다. totalVolumeCredtis 함수를 이용하자.
+    ```js
+    const volumeCredits = totalVolumeCredits();
+
+    function totalVolumeCredits() {
+      let volumeCredits = 0;
+      for (let perf of invoice.performances) {
+        volumeCredits += volumeCreditsFor(perf);
+      }
+      return volumeCredits;
+    }
+    ```
+    4. `volumeCredits` 변수를 제거하고 `변수를 인라인`한다.
+    ```js
+    // const volumeCredits = totalVolumeCredits();  // 제거..
+    result += `적립 포인트: ${totalVolumeCredits()}점\n`;
+    ```
+
+  - `반복문 쪼개기`는 for문을 두번 도는 꼴이라 성는이 떨어질 수 있다. 하지만 대부분의 경우 이런건 무시해도 되는수준이다. 잘 다듬어진 코드는 이후 성능 개선과 같은 다른 작업을 하기 수월해진다. 따라서 **특별한 경우가 아니라면 성능 문제는 무시하고 리팩터링을 잘 한 뒤 성능이 문제가 되는 부분을 찾아 개선하는게 좋다.**
+
