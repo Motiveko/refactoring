@@ -1,4 +1,3 @@
-
 function statement(invoice, plays) {
   const statementData = {};
   statementData.customer = invoice.customer;
@@ -52,19 +51,14 @@ function statement(invoice, plays) {
   }
 
   function totalAmount(data) {
-    let totalAmount = 0;
-    for (let perf of data.performances) {
-      totalAmount += perf.amount;
-    }
-    return totalAmount;
+    return data.performances.reduce((total, {amount}) => total + amount, 0);
   }
 
   function totalVolumeCredits(data) {
-    let volumeCredits = 0;
-    for (let perf of data.performances) {
-      volumeCredits += perf.volumeCredits;
-    }
-    return volumeCredits;
+    return data.performances.reduce(
+      (total, {volumeCredits}) => total + volumeCredits,
+      0,
+    );
   }
 }
 
@@ -89,6 +83,4 @@ function renderPlainText(data) {
       minimumFractionDigits: 2,
     }).format(aNumber / 100);
   }
-
 }
-
