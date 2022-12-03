@@ -1,0 +1,20 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`test htmlStatement 1`] = `
+"<h1>청구 내역 (고객명: BigCo)</h1>
+<table>
+<tr><th>연극</th><th>좌석 수</th><th>금액</th></tr><tr><td>Hamlet</td>(55석)<td></td><td>$650.00</td></tr><tr><td>As You Like it</td>(35석)<td></td><td>$580.00</td></tr><tr><td>Othello</td>(40석)<td></td><td>$500.00</td></tr></table>
+<p>총액: <em>$1,730.00</em></p>
+<p>적립 포인트: <em>47점</em></p>
+"
+`;
+
+exports[`test statement 1`] = `
+"청구 내역 (고객명: BigCo)
+Hamlet: $650.00 (55석)
+As You Like it: $580.00 (35석)
+Othello: $500.00 (40석)
+총액: $1,730.00
+적립 포인트: 47점
+"
+`;
