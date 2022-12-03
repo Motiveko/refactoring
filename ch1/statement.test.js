@@ -12,8 +12,8 @@ Othello: $500.00 (40석)
 적립 포인트: 47점
 `;
 
-invoicies
-  .map(invoice => statement(invoice, plays))
-  .forEach(result => {
-    console.log(result);
-  });
+test('test statement', () => {
+  const [invoice] = invoicies;
+  expect(statement(invoice, plays)).toEqual(expectedResult);
+})
+

@@ -4,7 +4,7 @@
   "description": "- 리팩토링 책을 따라서 코드 작성 - 리팩토링 - 커밋(코드와 함께 리팩토링한 내용을 Readme 추가)",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "repository": {
     "type": "git",
@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/Motiveko/refactoring/issues"
   },
-  "homepage": "https://github.com/Motiveko/refactoring#readme"
+  "homepage": "https://github.com/Motiveko/refactoring#readme",
+  "dependencies": {
+    "jest": "^29.3.1"
+  }
 }
