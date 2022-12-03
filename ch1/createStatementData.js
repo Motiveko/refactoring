@@ -10,22 +10,12 @@ function createStatementData(invoice, plays) {
     const calculator = new PerformanceCalculator(result, playFor(result));
     result.play = playFor(result);
     result.amount = calculator.amount;
-    result.volumeCredits = volumeCreditsFor(result);
+    result.volumeCredits = calculator.volumeCredits;
     return result;
   }
 
   function playFor(aPerformance) {
     return plays[aPerformance.playID];
-  }
-
-  function volumeCreditsFor(aPerformance) {
-    let volumeCredits = 0;
-    volumeCredits += Math.max(aPerformance.audience - 30, 0);
-    // 희극 관객 5명마다 추가 포인트를 제공한다.
-    if ('comedy' === aPerformance.play.type) {
-      volumeCredits += Math.floor(aPerformance.audience / 5);
-    }
-    return volumeCredits;
   }
 
   function totalAmount(data) {
@@ -66,6 +56,16 @@ class PerformanceCalculator {
         throw new Error(`알 수 없는 장르: ${this.performance.play.type}`);
     }
     return result;
+  }
+
+  get volumeCredits() {
+    let volumeCredits = 0;
+    volumeCredits += Math.max(this.performance.audience - 30, 0);
+    // 희극 관객 5명마다 추가 포인트를 제공한다.
+    if ('comedy' === this.play.type) {
+      volumeCredits += Math.floor(this.performance.audience / 5);
+    }
+    return volumeCredits;
   }
 
 }
