@@ -1,0 +1,21 @@
+{
+  "name": "refactoring",
+  "version": "1.0.0",
+  "description": "- 리팩토링 책을 따라서 코드 작성 - 리팩토링 - 커밋(코드와 함께 리팩토링한 내용을 Readme 추가)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Motiveko/refactoring.git"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Motiveko/refactoring/issues"
+  },
+  "homepage": "https://github.com/Motiveko/refactoring#readme"
+}
