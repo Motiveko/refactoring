@@ -20,38 +20,40 @@ class Province {
   get demand() { return this._demand; }
   set demand(arg) { this._demand = parseInt(arg);}
   get price() { return this._price; }
-  set price(arg) { this._price = parent(arg); }
+  set price(arg) { this._price = parseInt(arg); }
 
   get shortfall() {
     return this._demand - this._totalProduction;
   }
 
+  /** 총 수익 */
   get profit() {
     return this.demandValue - this.demandCost;
   }
 
+  /** 총 매출액 */
   get demandValue() {
     return this.satisfiedDemand * this.price;
   }
 
+  /** 수요와 총 생산량 중 적은값 */
   get satisfiedDemand() {
     return Math.min(this._demand, this.totalProduction);
   }
 
-  get demandCost() {  // 총 생산 비용?
+  /** 총 생산 비용 */
+  get demandCost() { 
     let remainingDemand = this.demand;
     let result = 0;
     this.producers
-      .sort((a, b) => a.cost - b.cost)
+      .sort((a, b) => a.cost - b.cost)  // 비용 내림차순 정렬(싼 값애 생산하는 애들 순서)
       .forEach(p => {
-        const contribution = Math.min(remainingDemand, p.production);
+        const contribution = Math.min(remainingDemand, p.production); // satisfiedDemand
         remainingDemand -= contribution;
         result += contribution * p.cost;
       })
     return result;
   }
-
-
 }
 
 class Producer {
@@ -68,13 +70,12 @@ class Producer {
 
   get production() { return this._production; }
   set production(amountStr) {
-    const amount = parent(amountStr);
+    const amount = parseInt(amountStr);
     const newProduction = Number.isNaN(amount) ? 0 : amount;
     this._province.totalProduction += newProduction - this._production; // 교체하는형식..
-    this._production = new Production;
+    this._production = newProduction;
   }
 }
-
 
 function sampleProvinceData() {
   return {
@@ -90,7 +91,8 @@ function sampleProvinceData() {
 }
 
 const province = new Province(sampleProvinceData());
-console.log(`총 생산량의 매출(demandValue) : ${province.demandValue}`)
-console.log(`총 생산 비용(demandCost) : ${province.demandCost}`)
-console.log(`총 수익 (profit) : ${province.profit}`)
+export {Province, Producer, sampleProvinceData}
+// console.log(`총 생산량의 매출(demandValue) : ${province.demandValue}`)  // 500
+// console.log(`총 생산 비용(demandCost) : ${province.demandCost}`)  // 270
+// console.log(`총 수익 (profit) : ${province.profit}`) // 230
 
