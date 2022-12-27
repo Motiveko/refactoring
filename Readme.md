@@ -429,3 +429,92 @@ function getRating(driver) {
 }
 ```
 - 아주 간단한 예시다. 애초에 간단하지 않은 함수는 인라인 해서는 안되는것이다.
+
+<br>
+
+### 6.3 변수 추출하기
+- 반대 리팩터링: `변수 인라인하기`
+
+<br>
+
+### 6.3.1 설명
+- 표현식이 너무 복잡해서 눈에 안들어오고 이해하기 어려울 때가 있다. 이 때 `지역 변수`를 활용해 표현식을 쪼개서 관리하면 더 보기 쉽다. 코드의 단계마다 이름을 붙일 수 있어 코드의 목적을 훨씬 명확하게 드러낼 수 있다.
+- 디버깅시에도 중단점을 지정할 수 있어 작업이 훨씬 수월해진다.
+- 표현식이 현재 함수 안에서만 의미가 있다면 `변수`로 추출하고, 다른 문맥에서도 의미가 된다면 `함수`로 추출해야 한다.
+
+### 6.3.2 절차
+1. 추출하려는 표현식에 부작용은 없는지 확인한다.
+2. 불변 변수를 선언하고 이름을 붙일 표현식의 복제본을 대입
+3. 원본 표현식을 새로 만든 변수로 교체
+4. 테스트
+5. 해당 표현식이 중복해서 사용되는곳을 새로운 변수로 교체하고 테스트한다.
+
+### 6.3.3 예시
+- 간단한 예시
+```js
+// 원본
+function price(order) {
+  return (
+    order.quantity * order.itemPrice -
+    Math.max(0, order.quantity - 500) * order.itemPrice * 0.05 +
+    Math.min(order.quantity * order.itemPrice * 0.01, 100)
+  );
+}
+
+// 변수 추출하기
+function price(order) {
+  const basePrice = order.quantity * order.itemPrice;
+  const quantityDiscount =
+    Math.max(0, order.quantity - 500) * order.itemPrice * 0.05;
+  const shipping = Math.min(order.quantity * order.itemPrice * 0.01, 100);
+  return basePrice - quantityDiscount + shipping;
+}
+```
+
+<br>
+
+- 클래스 안에서의 변수 추출
+```js
+// 원본
+class Order {
+  constructor(aRecord) {
+    this._data = aRecord;
+  }
+
+  get quantity() {
+    return this._data.quantity;
+  }
+  get itemPrice() {
+    return this._data.itemPrice;
+  }
+
+  get price() {
+    return (
+      this.quantity * this.itemPrice -
+      Math.max(0, this.quantity - 500) * this.itemPrice * 0.05 +
+      Math.min(this.quantity * this.itemPrice * 0.01, 100)
+    );
+  }
+}
+
+// 변수 추출하기 => class의 getter로 추출
+class Order {
+  // ...
+
+  get price() {
+    return this.basePrice - this.quantityDiscount + this.shipping;
+  }
+
+  get basePrice() { return this.quantity * this.itemPrice; }
+  get quantityDiscount() { return Math.max(0, this.quantity - 500) * this.itemPrice * 0.05; }
+  get shipping() { return Math.min(this.quantity * this.itemPrice * 0.01, 100);}
+}
+```
+- `class`를 사용했을 때의 엄청난 장점을 볼 수 있다. ***객체는 특정 로직과 데이터를 외부와 공유하려 할 때 공유할 정보를 설명해주는 적당한 크기의 문맥이 되어 준다.***
+- 덩치 큰 클래스의 공통 동작을 별도 이름으로 뽑아내서 추상화해두면 그 객체를 다룰 때 쉽게 활용할 수 있어서 매우 유용하다.
+
+<br>
+
+### 6.4 변수 인라인하기
+- 반대 리팩터링: `변수 추출하기`
+- 워낙 간단한거고, 변수 추출하기를 반대로 하면 되기 때문에 정리는 생략
