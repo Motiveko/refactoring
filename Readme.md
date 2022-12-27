@@ -391,3 +391,41 @@ function printOwing(invoice) {
   - 하나씩 반환하는 함수를 분리하거나(저자 선호)
 
 <br>
+
+### 6.2 함수 인라인하기
+- 반대 리팩터링: `함수 추출하기`
+
+<br>
+
+### 6.2.1 설명
+- 때로는 함수 본문이 함수 이름만큼 명확한 경우가 있다. 쓸데 없는 간접 호출은 거슬리기 때문에 다시 인라인한다.
+- 보통 과도한 함수 추출을 되돌리는 과정에서 하는 리팩토링인 듯 하다.
+
+<br>
+
+### 6.2.2 절차
+1. 다형 메서드인지 확인한다.
+    - **서브클래스에서 오버라이드하는 메서드은 인라인하면 안된다.**
+2. 인라인 할 함수를 **호출하는 곳을 모두 찾는다.**
+3. 호출문을 하나씩 함수 본문으로 교체한다.
+4. 교체할 때마다 테스트한다.
+5. 함수를 삭제한다.
+
+<br>
+
+### 6.2.3 예시
+```js
+// 원본
+function getRating(driver) {
+  return moreThanFiveLateDeliveries(driver) ? 2 : 1
+}
+function moreThanFiveLateDeliveries(driver) {
+  return driver.numberOfLateDeliveries > 5;
+}
+
+// 함수 인라인
+function getRating(driver) {
+  return (driver.numberOfLateDeliveries > 5) ? 2 : 1
+}
+```
+- 아주 간단한 예시다. 애초에 간단하지 않은 함수는 인라인 해서는 안되는것이다.
