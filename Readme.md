@@ -518,3 +518,91 @@ class Order {
 ### 6.4 변수 인라인하기
 - 반대 리팩터링: `변수 추출하기`
 - 워낙 간단한거고, 변수 추출하기를 반대로 하면 되기 때문에 정리는 생략
+
+<br>
+
+### 6.5 함수 선언 바꾸기
+- 다른 이름: `함수 이름 바꾸기`, `시그니처 바꾸기`
+### 6.5.1 설명
+- 함수의 이름
+  - 함수의 이름이 좋으면 구현 코드를 살펴볼 필요없이 호출문만 보고도 무슨 일을 하는지 알 수 있다. 좋은 이름이 떠오르면 바로 바꿔야한다.
+- 함수의 매개변수
+  - 매개변수를 잘 정하면 함수의 활용 범위가 넓어지고 다른 모듈과의 결합(coupling)을 제거할 수 있다.
+  - ex)
+  > 대여한 지 30일이 지났는지를 기준으로 지불 기한이 넘었는지 판단하는 함수가 있을 때, 이 함수의 매개변수는 `지불 객체`가 적절할까 `마감일`이 적절할까?
+    - `지불 객체`: 지불 객체의 인터페이스와 결합된다. 대신 지불이 제공하는 여러 속성에 쉽게 접근할 수 있어 내부 로직이 복잡해져도 이 함수를 호출하는 코드를 일일이 찾아가서 변경할 필요가 없다 => **함수의 캡슐화 수준이 높아진다.**
+    - `마감일`: 마감일로 하면 지불 객체를 모르는 곳에서도 이 함수를 사용할 수 있어 **함수의 활용 범위가 넓어지고 지불 객체와의 결합을 제거할 수 있다.**
+    - ***정답은 없다.***
+
+<br>
+
+### 6.5.2 절차
+- 그냥 IDE의 리팩터링을 이용한다.
+
+<br>
+
+### 6.5.3 예시
+- 생략
+
+<br>
+
+### 6.6 변수 캡슐화하기
+### 6.6.1 설명
+- 함수는 데이터보다 다루기 쉽다. 데이터는 유효범위가 넓을수록 다루기 어렵다. 또 데이터를 바꿀 땐, 데이터를 참조하는 모든 부분을 한 번에 바꿔야 코드가 제대로 동작한다.(결합도가 높다) 반면 함수는 기존 함수가 새로운 함수를 호출하는 식으로 쉽게 변경 가능하다.(결합도 낮다. => 리팩터링 쉽다.)
+- 접근 범위가 넓은 데이터를 옮길때는 해당 데이터의 접근을 독점하는 함수를 만드는 식의 `캡슐화`가 가장 좋은 방법일 때가 많다.
+- `데이터 캡슐화`는 데이터를 변경/사용하는 코드를 감시할 수 있는 통로가 되어, **변경 전 검증이나 변경 후 추가 로직을 쉽게 끼워 넣을 수 있다.**
+- 유효범위가 단일 함수보다 넓은 가변 데이터는 캡슐화 해야 한다. 그래야 자주 사용하는 데이터에 대한 결합도가 높아지는것을 막을 수 있다. 객체지향에서 객체의 데이터는 반드시 private으로 만드는 것이다.(getter/setter로만 접근)
+  > 객체 내에서도 필드 참조시 getter/setter로만 접근해야 한다(자가 캡슐화) => 이건 좀 지나치다. ***이렇게 해야 한다면 객체를 분리해야 한다는 신호다.***
+
+- `불변 데이터`는 굳이 캡슐화 할 필요는 없다. 변경될 일이 없어, 추가 로직을 끼워넣을 필요가 없기 때문
+
+<br>
+
+### 6.6.2 절차
+1. 변수로의 접근/갱신을 전담하는 캡슐화 함수를 만든다.
+2. 정적 검사를 수행한다.
+3. 변수를 참조하던 모든 부분을 캡슐화 함수로 바꾼다.
+4. 변수의 접근 범위를 제한한다.(ex 모듈분리)
+5. 테스트
+6. 변수 값이 레코드라면 `레코드 캡슐화하기` 적용을 고민해보자.
+
+<br>
+
+### 6.6.3 예시
+- 간단한 캡슐화
+```js
+let defaultOwner = {firstName: '마틴', lastName: '파울러'};
+
+// 사용처
+spaceship.owner = defaultOwner;
+defaultOwner = {firstName: '동기', lastName: '고'};
+
+// 캡슐화, defaultOwner.js
+let defaultOwnerData = {firstName: '마틴', lastName: '파울러'};
+export function defaultOwner() { return defaultOwnerData; } // 마틴파울러는 getter에 get 안붙이는걸 좋아한다고..
+export function setDefaultOwner(arg) { defaultOwnerData = arg; }
+```
+- 근데 이런 방식은 `defaultOwner`의 프로퍼티를 외부에서 변경하는걸 막을 수 없다. `값 캡슐화`를 하면 된다. `getter`가 복제본을 반환하도록한다.
+```js
+let defaultOwnerData = {firstName: '마틴', lastName: '파울러'};
+export function getDefaultOwner() { return Object.assign({}, defaultOwnerData); }
+export function setDefaultOwner(arg) { defaultOwnerData = arg; }
+```
+- `레코드 캡슐화`도 좋은 방법이다.
+```js
+let defaultOwnerData = {firstName: '마틴', lastName: '파울러'};
+export function getDefaultOwner() { return new Person(defaultOwnerData) }
+export function setDefaultOwner(arg) { defaultOwnerData = arg; }
+
+class Person {
+  constructor(data) {
+    this._lastName = data.lastName;
+    this._firstName = data.firstName;
+  }
+  get lastName() { return this._lastName; }
+  get firstName() { return this._firstName; }
+}
+```
+- 추가로, 세터에도 복제본을 만들어야 할 수도 있다.(`defaultOwnerData = {...args}`). 이건 `setter`호출부의 의도에 따라 달라질것이다.
+
+<br>
