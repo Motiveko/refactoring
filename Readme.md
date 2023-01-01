@@ -4,14 +4,14 @@
 
 ## 리팩터링 카탈로그(ch 6~12)
 ## [6. 기본적인 리팩터링](#6-기본적인-리팩터링-1)
-  - ### [6.1 함수 추출하기](#61-함수-추출하기-1)
+  - ### 🔥[6.1 함수 추출하기](#61-함수-추출하기-1)
   - ### [6.2 함수 인라인하기](#62-함수-인라인하기-1)
   - ### [6.3 변수 추출하기](#63-변수-추출하기-1)
   - ### [6.4 변수 인라인하기](#64-변수-인라인하기-1)
   - ### [6.5 함수 선언 바꾸기](#65-함수-선언-바꾸기-1)
   - ### [6.6 변수 캡슐화하기](#65-변수-캡슐화하기-1)
   - ### [6.7 변수 이름 바꾸기](#67-변수-이름-바꾸기-1)
-  - ### [6.8 매개변수 객체 만들기](#68-매개변수-객체-만들기-1)
+  - ### 🔥[6.8 매개변수 객체 만들기](#68-매개변수-객체-만들기-1)
   - ### [6.9 여러 함수를 클래스로 묶기](#69-여러-함수를-클래스로-묶기-1)
   - ### [6.10 여러 함수를 변환 함수로 묶기](#610-여러-함수를-변환-함수로-묶기-1)
   - ### [6.11 단계 쪼개기](#611-단계-쪼개기-1)
@@ -609,5 +609,99 @@ class Person {
 
 ### 6.7 변수 이름 바꾸기
 - 간단해서 생략한다.
+
+<br>
+
+### 6.8 매개변수 객체 만들기
+### 6.8.1 설명
+- 데이터 항목 여러개가 이함수 저함수 몰려다니는 경우가 있을 때 하나의 데이터 구조로 모아주면 좋다. 묶으면 **데이터 사이의 관계가 명확해진다**는 이점이 있다.
+- 이런 데이터 구조에서 공통으로 적용되는 동작을 추출해서 함수로 만들 수 있다.(공용함수 나열 or ***함수와 데이터를 합쳐 `클래스`생성***) 이렇게 하면 ***데이터 구조가 문제 영역을 훨씬 간결하게 표현하는 추상 개념으로 격상된다.***
+
+<br>
+
+### 6.8.2 절차
+1. 적당한 데이터 구조가 아직 마련되지 않았다면, 새로 만든다. 
+  - **가능하면 `클래스`로 만드는게 좋다. 동작까지 함께 묶을 수 있기 때문.**
+2. 테스트한다.
+3. `함수 선언 바꾸기`로 새 데이터 구조를 매개변수로 추가한다.
+4. 테스트한다.
+5. 함수 호출 시 새로운 데이터 구조 인스턴스를 넘기도록 수정한다. 매번 테스트한다.
+6. 기존 매개변수를 사용하던 코드를 새 데이터 구조의 원소를 사용하도록 바꾼다.
+7. 다했으면 기존 매개변수 제거하고 테스트한다.
+
+<br>
+
+### 6.8.3 예시
+- 온도 측정값 배열에서 정상 범위를 벗어난 것이 있는지 검사하는 코드를 살펴본다.
+```js
+const station = {
+  name: "ZB1",
+  readings: [
+    { temp: 47, time: "2016-11-10 09:10" },
+    { temp: 53, time: "2016-11-10 09:20" },
+    { temp: 58, time: "2016-11-10 09:30" },
+    { temp: 53, time: "2016-11-10 09:40" },
+    { temp: 51, time: "2016-11-10 09:50" },
+  ],
+};
+
+const operatingPlan = {
+  temperatureFloor: 40, // 최저온도
+  temperatureCeiling: 55, // 최고온도
+};
+
+// 함수
+function readingsOutsideRange(station, min, max) {
+  return station.readings.filter((r) => r.temp < min || r.temp > max);
+}
+
+// 호출..
+const alerts = readingsOutsideRange(
+  station,
+  operatingPlan.temperatureFloor,
+  operatingPlan.temperatureCeiling
+);
+```
+- `min`, `max`값은 `range`라는 개념으로 묶어서 표현할 수 있다. 여기서는 이 두 값을 `NumberRange`라는 클래스로 만든다.
+```js
+class NumberRange {
+  constructor(min, max) {
+    this._data = { min, max };
+  }
+
+  get min() {
+    return this._data.min;
+  }
+  get max() {
+    return this._data.max;
+  }
+
+}
+```
+- 상세 과정은 생략하고 리팩터링 해보면 아래와 같이 만들 수 있다.
+```js
+function readingsOutsideRange(station, range) {
+  return station.readings.filter(
+    (r) => r.temp < range.min || r.temp > range.max
+  );
+}
+```
+- `클래스`로 만들어 둘 때 장점은, 관련 동작을 클래스로 옮길 수 있다는 것이다. 아래와 같다.
+```js
+class NumberRange {
+  // ...
+
+  contains(arg) {
+    return arg >= this.min && arg <= this.max;
+  }
+}
+
+function readingsOutsideRange(station, range) {
+  return station.readings.filter((r) => !range.contains(r.temp));
+}
+```
+- `NumberRange`에 메서드 인자가 range 내에 포함되는지를 확인하는 `contains()`메서드를 만들고, 외부에서 이를 활용하도록 하였다. 
+- 이처럼 값 객체를 만들면 유용한 동작들을 클래스로 옮겨서 코드베이스 전반에서 값을 활용하는 방식을 간소화 할 수 있다. 여기서 `operatingPlan`도 floor/ceiling이란 range를 가지고 있으니, `temperatureRange`같은 클래스를 만들 수 있다.
+- 이런걸 만들 때 ***값에 기반한 동치성 검사 메서드***(equailty method)를 추가해야한다.
 
 <br>
