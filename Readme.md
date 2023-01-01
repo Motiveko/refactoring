@@ -794,3 +794,74 @@ const rawReading = acquireReading();
 const aReading = new Rading(rawReading);
 const { taxalbeCharge } = aReading; // 마찬가지로 getter로 썼기 때문에 프로퍼티처럼 접근할 수 있다.
 ```
+
+<br>
+
+### 6.10 여러 함수를 변환 함수로 묶기
+```js
+function base(aReading) { ... }
+function taxableCharge(aReading) { ... }
+
+// 변환 함수
+function enrichReading(argReading) {
+  const aReading = _.cloneDeep(argReading);
+  aReading.baseCharge = base(aReading);
+  aReading.taxableCharge = taxableCharge(aReading);
+  return aReading;
+}
+```
+### 6.10.1 설명
+- 소프트웨어는 입력을 받아서 여러가지 정보를 도출한다. 이 때, 도출된 정보는 여러 곳에서 사용될 수 있는데, 그러면 이 정보가 사용되는 곳마다 같은 도출 로직이 반복되게 된다. 이런 **도출 작업을 한데로 모으면(프로퍼티)** 검색과 갱신을 일관된 장소에서 처리하고 중복 로직도 막을 수 있다. 이렇게 하는 방법 중 하나가 `변환함수(transform)`를 사용하는 것이다. 변환함수 내에서만 정보 도출을 하기 때문에 해당 정보가 궁금하면 변환함수만 살펴보면 된다.(응집도향상)
+
+- 변환함수로 묶기 vs 클래스 메서드
+  - 원본 데이터가 코드에서 갱신되는경우 : 클래스 메서드 사용(변환 함수 사용시 일관성이 깨짐)
+  - 원본 데이터 변환 안됨 : 변환 함수 사용
+
+
+<br>
+
+### 6.10.2 절차
+1. 변환할 레코드를 입력받아서 (깊은)복사본을 반환하는 변환함수를 만든다.
+2. 묶을 함수 중 하나를 변환 함수로 옮기고, 처리 결과를 레코드의 새 필드에 기록한다. 그리고 클라이언트에서 이 필드를 사용하도록 수정한다.
+3. 테스트한다.
+4. 2-3을 반복한다.
+
+<br>
+
+### 6.10.3 예시
+- 6.9의 공공요금 계량과 세금 계산 코드를 예로 사용한다.
+```js
+const reading = {
+  customer: "motiveko",
+  quantity: 10,
+  month: 5,
+  year: 10,
+};
+
+
+// 클라이언트 
+const aReading = acquireReading();
+const basicChargeAmount = calculateBaseCharge(aReading);
+const taxableCharge = Math.max(0, basicChargeAmount - taxThreshold(aReading.year));
+
+function function calculateBaseCharge(aReading) { 
+  return baseRate(aReading.month, aReading.year) * aReading.quantity;
+}
+```
+- 변환 함수를 만든다. 보통 prefix로 `enrich`를 붙이는데, 부가정보만 추가되는건 `enrich`, 형태가 바뀌는건 `transform`이라고 명명한다고 한다. 상세 과정은 생략하고 결과만 본다.
+```js
+function enrichReading(original) {
+  const result = _.cloneDeep(original);
+  result.baseCharge = calculateBaseCharge(original);
+  result.taxableCharge = Math.max(0, result.baseCharge - taxThreshold(aReading.year));
+  return result
+}
+
+// 클라이언트
+const rawReading = acquireReading();
+const aReading = enrichReading(rawReading);
+const { taxableCharge } = aReading;
+```
+> 이런 변환함수를 거친 객체의 프로퍼티를 클라이언트가 수정하면 문제가 생긴다. 예를들어 `qunatity`값을 수정하면 `baseCharge`, `taxableCharge`값의 일관성이 깨지게 된다. js는 불변 데이터 구조를 지원하는 언어가 아니라서인데, 이런 언어에서는 `여러 함수를 클래스로 묶기`로 리팩토링 하는게 좋다.(참조할 때마다 계산하기 때문에 일관성이 안깨진다.) 사실 데이터가 읽기전용 문맥에서 사용된다면 큰 문제는 안된다.
+
+<br>
