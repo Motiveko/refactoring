@@ -705,3 +705,92 @@ function readingsOutsideRange(station, range) {
 - 이런걸 만들 때 ***값에 기반한 동치성 검사 메서드***(equailty method)를 추가해야한다.
 
 <br>
+
+### 6.9 여러 함수를 클래스로 묶기
+- 예..
+```js
+function base(aReading) { ... }
+function taxableCharge(aReading) { ... }
+function calculateBaseCharge(aReading) { ... }
+
+class Reading {
+  base() {...}
+  taxableCharge() {...}
+  calculateBaseCharge() {...}
+}
+```
+### 6.9.1 설명
+- 저자는 보통 (함수 호출시 인수로 전달되는) `공통 데이터`를 중심으로 긴밀하게 엮여 동작하는 함수 무리를 발견하면, 클래스 하나로 묶는다. 클래스로 묶으면 이 함수들이 공유하는 ***`공통 환경`을 더 명확하게 표현***할 수 있고, 각 함수에 전달되는 ***인수를 줄여***서 객체 내의 함수 호출을 간결하게 할 수 있다. 이런 객체를 시스템의 다른 부분에 전달하기 위한 ***참조를 제공***할 수도 있다.
+- 함수들을 `중첩 함수`형태로 묶기도 하는데, 클래스보다 테스트하기 까다로울 수 있다.
+
+<br>
+
+### 6.9.2 절차
+1. 함수들이 공유하는 `공통 데이터 레코드를 캡슐화` 한다.
+  - 레코드로 묶여있지 않다면, 먼저 `매개변수 객체 만들기`로 데이터를 하나로 묶는 레코드를 만들자.
+2. 공통 레코드를 사용하는 함수 각각을 새 클래스로 옮긴다.(`함수 옮기기`)
+3. 데이터를 조작하는 로직들은 `함수로 추출`해서 새 클래스로 옮긴다.
+
+<br>
+
+### 6.9.3 예시
+- 가스 계량기를 읽어서 측정값을 기록하고, 세금 매기는걸 계산하는 로직이 있다고 하자.
+```js
+const reading = {
+  customer: "motiveko",
+  quantity: 10,
+  month: 5,
+  year: 10,
+};
+
+// 클라이언트 1
+const aReading = acquireReading();
+const baseCharge = baseRate(aReading.month, aReading.year) * aReading.quantity;
+
+// 클라이언트 2
+const aReading = acquireReading();
+const base = baseRate(aReading.month, aReading.year) * aReading.quantity;
+const taxableCharge = Math.max(0, base - taxThreshold(aReading.year));
+```
+- 여기저기서 변수명도 좀 다르게 사용되고 있다. 우선 `레코드를 캡슐화`한다.
+```js
+class Reading {
+  constructor(data) {
+    this._customer = data.customer;
+    this._quantity = data.quantity;
+    this.month = data.month;
+    this._year = data.year;
+  }
+
+  get customer() { return this._customer; }
+  get quantity() { return this._quantity; }
+  get month() { return this.month; }
+  get year() { return this._year; }
+}
+```
+- 그런 다음 기본 세율(baseCharge)을 계산하는 메서드를 만든다.
+```js
+class Reading {
+  // ...
+
+  get baseCharge() {
+    return baseRate(this.month, this.year) * this.quantity;
+  }
+}
+```
+- 이렇게 getter로 만들면 클라이언트는 `baseCharge`가 필드인지 계산된 값(함수호출)인지 구분할 수 없다. 이는 ***`단일 접근 원칙`을 따르는 것으로 권장하는 방식이다.***
+- 세금을 계산하는 로직도 메서드로 옮겨보자.
+```js
+class Reading {
+  // ...
+
+  get taxableCharge() {
+    return Math.max(0, this.baseCharge - taxThreshold(this.year));
+  }
+}
+
+// 클라리언트 2
+const rawReading = acquireReading();
+const aReading = new Rading(rawReading);
+const { taxalbeCharge } = aReading; // 마찬가지로 getter로 썼기 때문에 프로퍼티처럼 접근할 수 있다.
+```
