@@ -993,3 +993,154 @@ function applyShipping({basePrice, quantity, discount}, shippingMethod) {
 }
 ```
 
+<br>
+
+2. JSON 파일에 담긴 주문의 개수를 세는 자바 프로그램을 살펴보자
+```java
+public static void main(String[] args) {
+  try {
+    if(args.length == 0) throw new RuntimeException("파일명을 입력하세요.");
+    String filename = args[args.length - 1];
+    File input = Paths.get(filename).toFile();
+    ObjectMapper mapper = new ObjectMapper();
+    Order[] orders = mapper.readValue(input, Order[].class);
+    if(Stream.of(args).anyMatch(arg -> "-r".equals(arg))) {
+      System.out.println(Stream.of(orders)
+                                .filter(o -> "ready".equals(o.status))
+                                .count());
+    } else {
+      System.out.println(orders.length);
+    }
+  } catch(Exception e) {
+    System.err.println(e);
+    System.exit(1);
+  }
+}
+```
+- argument로 전달한 파일을 `Order` 객체로 Deserialize 한 후 개수를 센 후 이를 표준 출력으로 보내고 있다.
+- 이 코드는 두가지 일을 하고 있다. 하나는 **주문 목록을 읽어서 개수를 세고**, 다른 하나는 ***명령줄 인수를 담은 배열을 읽어서 프로그램의 동작을 결정***한다. 이걸 두 단계로 쪼갠다.
+  1. 명령줄 인수의 구문을 분석해서 의미를 추출하는 단계
+  2. 이렇게 추출된 정보를 이용해서 데이터를 적절히 가공
+- 이렇게 하면 여러 옵션이나 스위치가 늘어나도 코드 수정이 쉬워진다.
+
+- 우선 쪼개기와 상관없는 ***'코드를 테스트하기 쉬운 상태로 만드는 작업'을 한다.*** 이런식으로 표준 출력으로 보내는 기능을 하는 함수는 매번 JVM을 구동해허 테스트 해야 하는데, 이를 **JUnit 호출로 자바 프로세스 하나에서 테스트 할 수 있는 상태**로 만든다. 
+- 우선 핵심 로직을 추출한다.
+```java
+public static void main(String[] args) {
+  try {
+    System.out.println(run(args));
+  } catch (Exception e) {
+    System.err.println(e);
+    System.exit(1);
+  }
+}
+
+static long run(String[] args) throws IOException {
+  if (args.length == 0)
+    throw new RuntimeException("파일명을 입력하세요.");
+  String filename = args[args.length - 1];
+  File input = Paths.get(filename).toFile();
+  ObjectMapper mapper = new ObjectMapper();
+  Order[] orders = mapper.readValue(input, Order[].class);
+  if (Stream.of(args).anyMatch(arg -> "-r".equals(arg))) {
+    return Stream.of(orders)
+        .filter(o -> "ready".equals(o.status))
+        .count();
+  } else {
+    return orders.length;
+  }
+}
+```
+- 이렇게 하면 `run()` 메서드는 표준 출력을 하는게 아니라, long 타입의 데이터를 반환하기 때문에, JUnit을 이용해서 테스트가 가능하다. 매번 CLI로 자바 프로세스 띄우는 것 보다 훨씬 쉬워졌다! 
+
+> 이런 식으로 느리고 불편한 작업과 자주 테스트해야 할 복잡한 동작을 분리해서 테스트를 더 쉽게 수행하게 만들었는데, 이 원칙을 ***`험블 객체 패턴(Humble Object Pattern)`*** 이라고 부른다!
+
+<br>
+
+- 이제 단계를 쪼갠다. 우선 ***'두 번째 단계에 해당하는 코드를 독립된 메서드로 추출'***한다.
+```java
+static long run(String[] args) throws IOException {
+  if (args.length == 0)
+    throw new RuntimeException("파일명을 입력하세요.");
+  String filename = args[args.length - 1];
+  return countOrders(args, filename)
+}
+
+private static long countOrders(String[] args, String filename) throws IOException {
+  File input = Paths.get(filename).toFile();
+  ObjectMapper mapper = new ObjectMapper();
+  Order[] orders = mapper.readValue(input, Order[].class);
+  if (Stream.of(args).anyMatch(arg -> "-r".equals(arg))) {
+    return Stream.of(orders)
+        .filter(o -> "ready".equals(o.status))
+        .count();
+  } else {
+    return orders.length;
+  }
+}
+```
+- countOrders에 전달되는 인수들 중 args는 첫 번째 단계에서 사용하는데, 이를 두 번째 단계에 노출하는건 적절치 않다. 이걸 분리하는게 단계 쪼개기의 목적이기 때문. 
+- ***'중간 데이터 구조를 추가'*** 하고, `args`와 `filename`을 여기에 넣고, 두 번째 단계 함수에 전달한다.
+```java
+static long run(String[] args) throws IOException {
+  if (args.length == 0)
+    throw new RuntimeException("파일명을 입력하세요.");
+  String filename = args[args.length - 1];
+  CommandLine commandLine = new CommandLine();
+  commandLine.filename = filename;
+  commandLine.onlyCountReady = Stream.of(args).anyMatch(arg -> "-r".equals(arg));
+  return countOrders(commandLine);
+}
+
+private static long countOrders(CommandLine commandLine) throws IOException {
+  File input = Paths.get(commandLine.filename).toFile();
+  ObjectMapper mapper = new ObjectMapper();
+  Order[] orders = mapper.readValue(input, Order[].class);
+  if (commandLine.onlyCountReady) {
+    return Stream.of(orders)
+        .filter(o -> "ready".equals(o.status))
+        .count();
+  } else {
+    return orders.length;
+  }
+}
+
+private static class CommandLine{
+  boolean onlyCountReady;
+  String filename;
+}
+```
+- 이제 ***'첫 번째 단계의 코드를 메서드로 추출하고 이 매서드가 중간 데이터 구조를 반환'*** 하도록 한다. 
+```java
+static long run(String[] args) throws IOException {
+  CommandLine commandLine = parseCommandLine(args);
+  return countOrders(commandLine);
+}
+
+private static CommandLine parseCommandLine(String[] args) {
+  if (args.length == 0)
+    throw new RuntimeException("파일명을 입력하세요.");
+  String filename = args[args.length - 1];
+  CommandLine commandLine = new CommandLine();
+  commandLine.filename = filename;
+  commandLine.onlyCountReady = Stream.of(args).anyMatch(arg -> "-r".equals(arg));
+  return commandLine;
+}
+```
+- 단계 쪼개기는 여기까지다. 추가로 이름 바꾸기와 인라인하기로 정리한다.
+```java
+static long run(String[] args) throws IOException {
+  return countOrders(parseCommandLine(args));
+}
+
+private static CommandLine parseCommandLine(String[] args) {
+  if (args.length == 0)
+    throw new RuntimeException("파일명을 입력하세요.");
+  String filename = args[args.length - 1];
+  CommandLine result = new CommandLine();
+  result.filename = filename;
+  result.onlyCountReady = Stream.of(args).anyMatch(arg -> "-r".equals(arg));
+  return result;
+}
+```
+- 두 단계가 `parseCommandLine()`, `countOrders()`로 명확하게 분리되었고, 테스트 하기도 쉬워졌다.
