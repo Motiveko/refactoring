@@ -865,3 +865,131 @@ const { taxableCharge } = aReading;
 > 이런 변환함수를 거친 객체의 프로퍼티를 클라이언트가 수정하면 문제가 생긴다. 예를들어 `qunatity`값을 수정하면 `baseCharge`, `taxableCharge`값의 일관성이 깨지게 된다. js는 불변 데이터 구조를 지원하는 언어가 아니라서인데, 이런 언어에서는 `여러 함수를 클래스로 묶기`로 리팩토링 하는게 좋다.(참조할 때마다 계산하기 때문에 일관성이 안깨진다.) 사실 데이터가 읽기전용 문맥에서 사용된다면 큰 문제는 안된다.
 
 <br>
+
+### 6.11 단계 쪼개기
+- 좀 복잡하다. 아래는 간단한예.
+```js
+// origin
+const orderData = orderString.split(/\s+/);
+const productPrice = priceList[orderData[0].split("-")[1]];
+const orderPrice = parseInt(orderData[1]) * productPrice;
+
+// refatoring
+const orderRecord = parseOrder(order);
+const orderPrice = price(orderRecord, priceList);
+
+function parseOrder(aString) {
+  const values = aString.split(/\s+/);
+  return ({
+    productID: orderData[0].split("-")[1],
+    quantity: parseInt(values[1]),
+  })
+}
+
+function price(order, priceList) {
+  return order.quantity * priceList[order.productID];
+}
+```
+
+### 6.11.1 설명
+- **서로 다른 두 대상**을 한꺼번에 다르는 코드를 발견하면 각각을 별개 모듈로 나눌 방법을 생각해야 한다. 코드 수정시, 두 대상을 한꺼번에 고려할 필요 없이 하나만 집중하기 위해서다.(`SRP`로 봐도 될 듯) 
+- 이렇게 하는데 가장 편한 방법이 ***동작을 연이은 두 단계로 쪼개는 것***이다.
+- 대표적인 예는 `컴파일러`다. 컴파일러는 결국 `텍스트코드`를 받아서 실행 가능한 형태(기계어)로 변환한다. 컴파일러를 오래 개발하다보니 사람들은 ***작업이 순차적으로 연결되 형태로 분리하면 좋다***는 사실을 깨달았다.
+  1. 텍스트 토큰화
+  2. 토큰을 파싱하여 syntax tree 생성
+  3. 최적화 등 구문 트리 변환
+  4. 목적 코드(기계어) 생성
+- 각 단계는 자신만의 문제에 집중하고, 나머지 단계는 몰라도 된다!
+- ***다른 단계로 볼 수 있는 코드 영역들이 마침 서로 다른 데이터와 함수를 사용한다면 쪼개기에 적합하다. 이를 별도 모듈들로 분리하면 그 차이를 코드에서 훨씬 분명하게 드러낼 수 있다.***
+
+<br>
+
+### 6.11.2 절차
+1. 두 번째 단계에 해당하는 코드를 독립 `함수로 추출`한다.
+2. 테스트한다.
+3. `중간 데이터 구조`를 만들어서 앞에서 추출한 함수의 인수로 추가한다.
+4. 테스트한다.
+5. 추출한 두 번째 단계 함수의 매개변수를 하나씩 검토한다. 그중 첫 번째 단계에서 사용되는 것은 중간 데이터 구조로 옮기고, 매번 테스트한다.
+    - 간혹 두 번째 단계에서 사용하면 안 되는 매개변수가 있다. 이럴 때는 각 매개변수를 사용한 결과를 중간 데이터 구조의 필드로 추출하고, 이 필드의 값을 설정하는 문장을 호출한 곳으로 옮긴다.
+6. 첫 번째 단계 코드를 `함수로 추출`하면서 중간 데이터 구조를 반환하도록 만든다.
+    - 이때 첫 번째 단계를 변환기(transformer)객체로 추출해도 좋다.
+<br>
+
+### 6.11.3 예시
+1. 상품의 결제 금액을 계산하는 코드를 살펴본다.
+```js
+function priceOrder(product, quantity, shippingMethod) {
+  const basePrice = product.basePrice * quantity;
+  const discount =
+    Math.max(quantity - product.discountThreshold, 0) *
+    product.basePrice *
+    product.discountRate;
+  const shippingPerCase =
+    basePrice > shippingMethod.discountThreshold
+      ? shippingMethod.discountedFee
+      : shippingMethod.feePerCase;
+  const shippingCost = quantity * shippingPerCase;
+  const price = basePrice - discount + shippingCost;
+  return price;
+}
+```
+- 간단한 함순데, 두 단계로 이뤄져있다. 상품 가격 게산(`basePrice`, `discount`)과 배송 정보를 이용한 배송비 계산(`shippingCost`)이다. 추후, 상품 가격과 배송비 계산이 변경이 있을 수 있는데, 이 둘은 각각 독립적으로 처리할 수 있으므로 두 단계로 나눈다. 
+- 배송비 계산 부분을 함수로 추출한다.
+```js
+function priceOrder(product, quantity, shippingMethod) {
+  const basePrice = product.basePrice * quantity;
+  const discount =
+    Math.max(quantity - product.discountThreshold, 0) *
+    product.basePrice *
+    product.discountRate;
+  const price = applyShipping(basePrice, shippingMethod, quantity, discount);
+  return price;
+}
+// 두 번째 단계인 배송비 계산을 처리한다.
+function applyShipping(basePrice, shippingMethod, quantity, discount) {
+  const shippingPerCase =
+    basePrice > shippingMethod.discountThreshold
+      ? shippingMethod.discountedFee
+      : shippingMethod.feePerCase;
+  const shippingCost = quantity * shippingPerCase;
+  const price = basePrice - discount + shippingCost;
+  return price;
+}
+```
+- 그 다음 첫번째 단계와 두 번째 단계가 주고받을 중간 데이터 구조를 만들고 이걸 두 번째 단계 함수의 매개변수에 전달하자. 함수는 이 중간데이터를 쓰도록 수정한다. 중간 데이터에 들어갈 데이터는 `basePrice`, `quantity`, `discount`가 있다. 
+```js
+function priceOrder(product, quantity, shippingMethod) {
+  // ...
+  const priceData = {basePrice, discount, quantity};
+  const price = applyShipping(priceData, shippingMethod);
+  return price;
+}
+
+function applyShipping({basePrice, discount, quantity}, shippingMethod) {
+  // ...
+}
+```
+- 이제 첫 번째 단계 코드를 함수로 추출하고, 이 중간 데이터 구조를 반환하게 만든다.
+
+```js
+function priceOrder(product, quantity, shippingMethod) {
+  const priceData = calculatePricingData(product, quantity);
+  return applyShipping(priceData, shippingMethod);
+}
+
+function calculatePricingData(product, quantity) {
+  const basePrice = product.basePrice * quantity;
+  const discount =
+    Math.max(quantity - product.discountThreshold, 0) *
+    product.basePrice *
+    product.discountRate;
+  return { basePrice, quantity, discount };
+}
+
+function applyShipping({basePrice, quantity, discount}, shippingMethod) {
+  const shippingPerCase = (basePrice > shippingMethod.discountThreshold) ? shippingMethod.discountedFee : shippingMethod.feePerCase;
+  const shippingCost = quantity * shippingPerCase;
+  return basePrice - discount - shippingCost;
+}
+```
+
