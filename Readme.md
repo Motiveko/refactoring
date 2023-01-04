@@ -1144,3 +1144,48 @@ private static CommandLine parseCommandLine(String[] args) {
 }
 ```
 - 두 단계가 `parseCommandLine()`, `countOrders()`로 명확하게 분리되었고, 테스트 하기도 쉬워졌다.
+
+<br>
+
+3. 첫 번째 단계에 `변환기`(transformer) 사용하기
+- 2.예제에서 `parseCommandLine()`를 이용해 간단한 레코드 형태 데이터 구조를 만들고 이를 `countOrders()`에다가 전달했다. 이런 방법도 무관하지만, `CommandLine`객체를 `String[] args`를 `filename`, `onlyCountReady`와 같은 데이터로 바꿔주는 변환기 객체로 만드는 것도 하나의 방법이다.
+- 중간 과정은 생략하고, 이런식으로 리팩터링 하는것이다.
+```java
+  static long run(String[] args) throws IOException {
+    return countOrders(new CommandLine(args));
+  }
+
+  private static long countOrders(CommandLine commandLine) throws IOException {
+    File input = Paths.get(commandLine.filename()).toFile();
+    ObjectMapper mapper = new ObjectMapper();
+    Order[] orders = mapper.readValue(input, Order[].class);
+    if (commandLine.onlyCountReady()) {
+      return Stream.of(orders)
+          .filter(o -> "ready".equals(o.status))
+          .count();
+    } else {
+      return orders.length;
+    }
+  }
+
+  private static class CommandLine{
+    String[] args;
+
+    public CommandLine(String[] args) {
+      if (args.length == 0)
+        throw new RuntimeException("파일명을 입력하세요.");
+      this.args = args;
+    }
+    String filename() {
+      return args[args.length - 1];
+    }
+
+    boolean onlyCountReady() {
+      return Stream.of(args).anyMatch(arg -> "-r".equals(arg));
+    }
+  }
+```
+- 2와 3의 차이는 
+  - 순차적으로 실행되는 두 함수 사이에 단순한 레코드 형태의 자료 구조를 던지는 방식 
+  - 변환기 만들어서 전달하는 방식
+- 으로 나뉜다고 할 수 있다. 어떤 방식을 쓰건 무관하고, ***'핵심은 단계를 명확히 분리하는 것'***이다.
