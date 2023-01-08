@@ -15,7 +15,18 @@
   - ### [6.9 여러 함수를 클래스로 묶기](#69-여러-함수를-클래스로-묶기-1)
   - ### [6.10 여러 함수를 변환 함수로 묶기](#610-여러-함수를-변환-함수로-묶기-1)
   - ### [6.11 단계 쪼개기](#611-단계-쪼개기-1)
+<br>
 
+## [7. 캡슐화](#7-캡슐화-1)
+  - ### [7.1 레코드 캡슐화하기](71-레코드-캡슐화하기)
+  - ### [7.2 컬렉션 캡슐화하기](72-컬렉션-캡슐화하기)
+  - ### [7.3 기본형을 객체로 바꾸기](73-기본형을-객체로-바꾸기)
+  - ### [7.4 임시 변수를 질의 함수로 바꾸기](74-임시-변수를-질의-함수로-바꾸기)
+  - ### [7.5 클래스 추출하기](75-클래스-추출하기)
+  - ### [7.6 클래스 인라인하기](76-클래스-인라인하기)
+  - ### [7.7 위임 숨기기](77-위임-숨기기)
+  - ### [7.8 중개제 제거하기](78-중개제-제거하기)
+  - ### [7.9 알고리즘 교체하기](79-알고리즘-교체하기)
 
 
 
@@ -1057,7 +1068,7 @@ static long run(String[] args) throws IOException {
 
 <br>
 
-- 이제 단계를 쪼갠다. 우선 ***'두 번째 단계에 해당하는 코드를 독립된 메서드로 추출'***한다.
+- 이제 단계를 쪼갠다. 우선 ***'두 번째 단계에 해당하는 코드를 독립된 메서드로 추출'*** 한다.
 ```java
 static long run(String[] args) throws IOException {
   if (args.length == 0)
@@ -1189,3 +1200,193 @@ private static CommandLine parseCommandLine(String[] args) {
   - 순차적으로 실행되는 두 함수 사이에 단순한 레코드 형태의 자료 구조를 던지는 방식 
   - 변환기 만들어서 전달하는 방식
 - 으로 나뉜다고 할 수 있다. 어떤 방식을 쓰건 무관하고, ***'핵심은 단계를 명확히 분리하는 것'***이다.
+
+<br>
+
+## 7. 캡슐화
+### 7.1 레코드 캡슐화하기
+```js
+// 레코드..
+organization = {name: 'motiveko', country: 'kr'};
+
+// 레코드의 캡슐화..
+class Organiztation {
+  constructor(data) {
+    this._name = data.name;
+    this._country = data.country;
+  }
+  get name() { return this._name; }
+  set name(arg) { this._name = arg; }
+  get country() { return this._country; }
+  set country(arg) { this._country = arg; }
+}
+```
+### 7.1 설명
+- `객체(클래스)`는 **가변데이터일 때 쓰면 좋다. 즉 계산해서 얻을 수 있는 값이 있을 때** 쓰면 좋다. 데이터가 불변이라면 `레코드(리터럴 객체, hashmap)`을 써도 무방하다.
+  - 예를 들어 값의 범위를 표현하는 데이터가 있다고 할 때 `{start: 1, end: 5}`형태로 저장하면, 범위의 길이(length)를 알고 싶으면 매번 레코드 밖에서 계산해야 할 것이다. `{length:5}`를 추가한다고 해도, start/
+  end가 바뀌면 length는 또 계산해서 갱신해줘야하는 불편함이 있다!
+
+<br>
+
+### 7.2 절차
+1. 레코드를 담은 변수를 캡슐화 한다.
+- 레코드를 캡슐화하는 함수의 이름은 검색하기 쉽게 지어준다.
+2. 레코드를 감싼 단순한 클래스로 해당 변수의 내용을 교체한다. 이 클래스에 원본 레코드를 반환하는 접근자도 정의하고, 변수를 캡슐화하는 함수들이 이 접근자를 사용하도록 수정한다.
+3. 테스트한다.
+4. 원본 레코드 대신 새로 정의한 클래스 타입의 객체를 반환하는 함수들을 새로 만든다.
+5. 레코드를 반환하는 예전 함수를 사용하는 코드를 4.에서 만든 함수를 사용하도록 바꾼다. 필드에 접근하는건 객체의 접근자를 사용하고, 적절한 접근자가 없으면 추가한다.
+6. 클래스에서 원본 데이터를 반환하는 접근자와 원본 레코드를 반환하는 접근자는 제거한다.
+7. 테스트한다.
+8. 레코드 필드에 또 레코드가 있으면 '레코드 캡슐화하기'와 '컬렉션 캡슐화하기'를 재귀적으로 적용한다.
+
+<br>
+
+### 7.3 예시
+- 과정은 그냥 생략한다. 
+1. 간단한 레코드 캡슐화
+
+```js
+// 레코드
+const organiztion = {name: 'motiveko', country: 'kr'};
+
+// 사용부
+let result = `<h1>${organiztion.name}</h1>`; // get
+organiztion.name = 'newName'; // set 
+```
+
+```js
+class Organiztion {
+  constructor(data) {
+    this._name = data.name;
+    this._country = data.country;
+  }
+  get name() { return this._name; }
+  set name(arg) { this._name = arg; }
+  get country() { return this._country; }
+  set country(arg) { this._country = arg; }
+}
+const organiztaion = new Organiztion({name: 'motiveko', country: 'kr'});
+
+// 사용부
+let result = `<h1>${organiztaion.name}</h1>`; // get
+organiztaion.name = 'newName'; // set
+```
+
+<br>
+
+2. 중첩된 레코드 캡슐화
+```js
+const customerData = {
+  1920: {
+    name: "마틴 파울러",
+    id: "1920",
+    usages: {
+      2016: {
+        1: 50,
+        2: 55,
+        // ...
+      },
+      2015: {
+        1: 70,
+        2: 63,
+        // ...
+      },
+    },
+  },
+  38673: {
+    name: '닐 포드',
+    id: '38673',
+    // ...
+  },
+};
+
+// 쓰기 예
+customerData[customerID].usages[year][month] = amount;
+// 읽기 예
+function compareUsage(customerID, laterYear, month) {
+  const later = customerData[customerID].usages[laterYear][month];
+  const earlier = customerData[customerID].usages[laterYear - 1][month];
+  return {laterAmount: later, change: later - earlier};
+}
+```
+- 쓰기와 읽기 모두 데이터 구조 안으로 깁숙히 들어가야하는 번거로움이 있다. 상세 과정은 생략하고 결과를 보면..
+```js
+class CustomerData {
+  constructor(data) {
+    this._data = data;
+  }
+
+  // 쓰기
+  setUsage(customerID, year, month, amount) {
+    this._data[customerID].usages[year][month] = amount;
+  }
+
+  // 읽기 API 제공
+  usage(customerID, year, month) {  
+    return this._data[customerID].usages[year][month];
+  }
+
+  // 읽기 : 레코드의 deepclone 반환
+  get rawData() {
+    return _.cloneDeep(this._data);
+  }
+}
+const customerData = new CustomerData(...customerData)
+
+// 쓰기 예
+customerData.setUsage(customerId, year, month, amount);
+// 읽기 예
+function compareUsage(customerID, laterYear, month) {
+  const later = customerData.usage(customerID, laterYear, month)
+  const earlier = customerData.usage(customerID, laterYear - 1, month)
+  return {laterAmount: later, change: later - earlier};
+}
+
+```
+- `쓰기`
+  - 캡슐화에는 ***'모든 쓰기를 함수 안에서 처리한다.'*** 는 핵심 원칙이 있다. 즉 클래스의 API를 통해서만 쓰기가 이뤄져야 한다는 것이다.
+  - 덩치 큰 데이터 구조에서는 쓰기가 특히 중요한데, ***값을 수정하는 부분을 명확하게 드러내고 한 곳에 모아두는 일이 매우 중요***하다.
+
+- `읽기`는 여러가지 방법이 있다.
+  1. setter와 마찬가지로 읽는 코드를 모두 독립 함수로 추출한 다음 고객 데이터 클래스로 옮기는 방법
+      - 장점: 모든 쓰임을 API로 제공하기 때문에, 클래스만 보면 사용법을 전부 파악할 수 잇다.
+      - 단점: 읽는 패턴이 다양ㅇ해지면 코드가 늘어난다.
+  2. 레코드를 통째로 deepclone해서 반환하는 getter를 제공한다.
+      - 장점: 구현이 간단하다.
+      - 단점: 레코드가 크면 복제 비용이 커진다. / 클라이언트가 원본을 수정하고 있다고 착각할 수 있다.
+  3. `읽기 전용 Proxy`를 통해 레코드를 반환해서 내부 객체 수정시 에러를 던지도록 한다.(js에서는 좀 귀찮은 작업이 필요, [`Proxy API`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy)를 쓰면 될 듯)
+  4. 레코드 캡슐화를 재귀적으로 한다.
+      - 장점: 가장 확실한 방법
+      - 단점 : 하지만 데이터 구조가 거대하면 일이 매우 커지고, 만약 중첩된 데이터를 쓰는 일이 별로 많지 않다면 효과도 별로 없다.
+
+### 7.2 컬렉션 캡슐화하기
+
+<br>
+
+### 7.3 기본형을 객체로 바꾸기
+
+<br>
+
+### 7.4 임시 변수를 질의 함수로 바꾸기
+
+<br>
+
+### 7.5 클래스 추출하기
+
+<br>
+
+### 7.6 클래스 인라인하기
+
+<br>
+
+### 7.7 위임 숨기기
+
+<br>
+
+### 7.8 중개제 제거하기
+
+<br>
+
+### 7.9 알고리즘 교체하기
+
+
