@@ -1360,10 +1360,118 @@ function compareUsage(customerID, laterYear, month) {
       - 단점 : 하지만 데이터 구조가 거대하면 일이 매우 커지고, 만약 중첩된 데이터를 쓰는 일이 별로 많지 않다면 효과도 별로 없다.
 
 ### 7.2 컬렉션 캡슐화하기
+```js
+class Person {
+  get courses() { return this._courses; }
+  set courses(aList) { this._courses = aList; }
+}
+
+// 컬렉션 캡슐화..
+class Person {
+  get courses() { return this._courses.slice(); } // shallow copy
+  addCourse(aCourse) { ... }
+  removeCourse(aCourse) { ... }
+}
+```
+<br>
+
+### 7.2.1 설명
+- 가변 데이터는 모두 캡슐화하는게 좋다. 데이터 구조가 언제 어떻게 수정되는지 파악하기 쉬워 데이터 구조 변경도 쉽기 때문이다. 
+- 근데 컬렉션을 캡슐화 할 땐 실수가 발생할 여지가 많다. getter가 컬렉션을 그대로 반환하게 하면 클래스가 눈치채지 못하게 컬렉션이 바뀌가 되는 경우가 있다.
+- 보동 `add()`, `remove()`같은 `컬렉션 변경자 메서드`를 제공해서 이 메서드를 통해서만 컬렉션을 변경하게 해야 한다.
+- 내부 컬렉션을 직접 수정하지 못하게 하는 방법으로 **'컬렉션을 절대 반환하지 않는 방법'** 이 있다.
+  ```js
+  aCustomer.orders.size(); 
+
+  // 컬랙션을 절대 반환하지 않도록...
+  aCustomer.nuberOfOrders();
+  ```
+  - 이 방식은 문제가 있다. 최신 언어에서 다양한 컬렉션 클래스들의 표준화된 인터페이스를 제공하고, **컬렉션 파이프라인 패턴을 쓸 수 있게 하는데, 컬렉션을 반환하지 않으면 이 패턴을 못써서 부수 코드가 매우 많아질 수 있기 때문!**
+- 자바 등의 언어는 읽기 전용 프락시로 반환하게 하는게 쉽다. 컬렉션의 읽기 메서드는 그대로 전달하고, 쓰기 메서드는 호출하면 에러를 던지는 식이다.(Typescript에서 `Readonly` 타입으로 반환하게 하면 컴파일 단계에서는 잡아 줄 수 있을것 같다.)
+- 가장 흔한 방법은 **'내부 컬렉션의 복제본을 반환하는 것'** 이다. 컬렉션이 엄청 크면 성능 문제가 생기지만, 대부분의 경우 문제가 되지 않는다.
+
+<br>
+
+### 7.2.2 절차
+1. 아직 컬렉션을 캡슐화하지 않았다면 변수 캡슐화하기부터 한다.
+2. 컬렉션에 원소를 추가/제거하는 함수를 추가한다.
+  - 컬렉션 자체를 통째로 바꾸는 세터는 제거한다. 힘들다면 인수로 받은 컬렉션을 복제해 저장하도록 한다.
+3. 정적 검사를 수행한다.
+4. 컬렉션을 참조하는 부분을 모두 찾고, 2.에서 추가한 함수를 호출하도록 수정한다. 매번 테스트한다.
+5. 컬렉션 게터를 수정해서 원본 내용을 수정할 수 없는 '읽기전용 프락시'나 복제본을 반환하게 한다.
+6. 테스트한다.
+
+<br>
+
+### 7.2.3 예시
+```js
+class Person {
+  constructor(name) {
+    this._name = name;
+    this._courses = []; // 컬렉션
+  }
+  get name() { return this._name; }
+  get courses() { return this._courses; }
+  set courses(aList) { this._courses = aList; }
+}
+
+class Course {
+  constructor(name, isAdvanced) {
+    this._name = name;
+    this._isAdvanced = isAdvanced;
+  }
+  get name() { return this._name; }
+  get isAdvanced() { return this._isAdvanced; }
+}
+const aPserson = new Person('motiveko');
+
+// 클라이언트..
+
+// 읽기
+let numAdvancedCourses = aPserson.courses.filter((c) => c.isAdvanced).length;
+
+// 컬렉션 쓰기 => set course() 사용
+const basicCourseNames = readBasicCourseNames(filename);
+aPserson.courses = basicCourseNames.map(name => new Course(name, false));
+
+// 컬렉션 쓰기 => 컬렉션의 push 메서드 직접호출(직접 컬렉션 조작)
+for(const name of readBasicCourseNames(filename)) {
+  aPersone.courses.push(new Course(name, false))
+}
+```
+- 현재의 쓰기 방식으로 `courses`컬렉션을 조작하면 `Person`클래스가 더는 **컬렉션을 제어하지 못하기 때문에 캡슐화가 깨진다.** 컬렉션 추가/제거 메서드를 추가한다.
+```js
+class Person {
+  // ...
+
+  addCourse(aCourse) {
+    this._courses.push(aCourse);
+  }
+  removeCourse(aCourse, fnIfAbsent = () => {throw new RangeError();}) {
+    const index = this._courses.indexOf(aCourse);
+    if(index === -1) fnIfAbsent();
+    else this._courses.splice(index, 1);
+  }
+}
+
+// 클라이언트..
+for(const name of readBasicCourseNames(filename)) {
+  aPersone.courses.push(new Course(name, false))
+}
+```
+- 이렇게 하면 `setCourses()`를 쓸 필요가 없기 때문에 제거해도 된다. 세터로 제공해야 할 특별한 이유가 있다면, ***인수로 받은 컬렉션의 복제본을 필드에 저장하게 한다.***
+```js
+class Person {
+  // ...
+  set courses(aList) { this._courses = aList.slice(); }
+}
+```
+- 마틴 파울러의 경험상, 컬렉션에 대해 어느정도 강박을 가지고 불필요한 복제본을 만드는 편이 예상치 못한 수정이 촉발한 오류를 디버깅 하는 것보다 낫다고 한다! 자바스크립트는 특히나 컬렉션을 수정하는 연산이 원본을 수정하는것들이 많아서( mutable, ex) `sort()`) 복제본을 만드는것이 특히 중요하다!
 
 <br>
 
 ### 7.3 기본형을 객체로 바꾸기
+
 
 <br>
 
