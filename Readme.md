@@ -1471,11 +1471,132 @@ class Person {
 <br>
 
 ### 7.3 기본형을 객체로 바꾸기
+```js
+orders.filter(o => 'high' === o.priority || 'rush' === o.priority).length
 
+// 기본형을 객체로..
+orders.filter(o => o.priority.higherThan(new Priority("normal"))).length
+```
+
+<br>
+
+### 7.3.1 설명
+- 개발 초기 단순한 정보를 숫자/문자열 같은 기본형으로 표현할 때가 많은데, 개발이 진행되다 보면 이게 복잡해지는 경우가 있다.
+- 예를들어, 전화번호를 문자열로 표현했는데 나중에 포매팅이나 지역코드 추출 등의 동작이 필요해질 수 있다.
+- ***'단순 출력' 이상의 기능이 필요하면, 그 데이터를 표현하는 전용 클래스를 정의하자.*** 기능이 커질수록 코드베이스에 미치는 개선 효과는 놀랄만큼 커진다.
+
+<br>
+
+### 7.3.2 절차
+1. 변수를 캡슐화 한다.
+2. 단순한 값 클래스를 만든다.
+3. 정적 검사를 수행한다.
+4. 값 클래스의 인스턴스를 만들어 필드에 저장하도록 세터를 수정한다. 
+5. 새로 만든 클래스의 게터를 호출한 결과를 반환하도록 게터를 수정한다.
+6. 테스트한다.
+7. 함수 이름을 바꾸면 접근자의 동작을 더 잘 드러낼 수 있는지 검토한다.
+
+<br>
+
+### 7.3.3 예시
+- 간단한 Order 클래스를 살펴보자. 주문의 우선순위(priority)속성을 간단한 문자열로 표현한다.
+```js
+class Order {
+  constructor(data) {
+    this.priority = data.priority;
+    // ...
+  }
+}
+
+highPriorityCount = orders.filter(
+  (o) => "high" === o.priority || "rush" === o.priority
+).length;
+```
+- 변수를 캡슐화한다.
+```js
+class Order {
+  // ..
+
+  get priority() { return this._priority; }
+  set priority(aString) { this._priority = aString; }
+}
+```
 
 <br>
 
 ### 7.4 임시 변수를 질의 함수로 바꾸기
+
+### 7.4.1 설명
+- 긴 함수의 한 부분을 별도 함수로 추출하고자 할 때, 먼저 변수를 각각의 함수로 만들면 따로 인자를 전달할 필요가 없어 리팩토링이 쉽다.
+- 변수를 질의 함수로 만들면 비슷한 계산을 수행하는 다른 함수에도 쓸 수 있어 반복을 줄일 수 있다.
+- 이 리팩토링 기법은 클래스에서 사용할 때 특히 좋다.
+  - 하나의 클래스 내에서는 컨텍스트를 공유하기 때문
+  - 클래스 외에서 이 방식은, 컨텍스트를 공유하지 않기 때문에 매개변수를 너무 많이 전달하게 된다. (내부 중첩 함수로 써도 되긴 하나 이건 재활용하기가 어려워 진다는 단점이 있다.)
+
+<br>
+
+### 7.4.2 절차
+- 생략
+
+<br>
+
+### 7.4.3 예시
+- 간단한 Order 클래스를 리팩토링한다.
+```js
+class Order {
+  constructor(quantity, item) {
+    this._quantity = quantity;
+    this._item = item;
+  }
+
+  get price() {
+    const basePrice = this._quantity * this._item.price;
+    let discountFactor = 0.98;
+
+    if(basePrice > 1000) discountFactor -= 0.03;
+    return basePrice * discountFactor;
+  }
+}
+```
+- `basePrice`를 질의함수(getter)로 추출하고 인라인한다.
+```js
+class Order{
+  //...
+  get price() {
+    let discountFactor = 0.98;
+
+    if(this.basePrice > 1000) discountFactor -= 0.03;
+    return this.basePrice * discountFactor;
+  }
+
+  get basePrice() {
+    return this._quantity * this._item.price;
+  }
+}
+```
+- `discountFactor`도 추출한다. (선언부터 if 재할당까지 묶어서 리팩터 하면 추출된다.)
+```js
+class Order {
+  get price() {
+    let discountFactor = this.discountFactor;
+    return this.basePrice * discountFactor;
+  }
+
+  get discountFactor() {
+    let discountFactor = 0.98;
+
+    if (this.basePrice > 1000)
+      discountFactor -= 0.03;
+    return discountFactor;
+  }
+}
+```
+- 변수인라인하기 한다.
+```js
+get price() {
+    return this.basePrice * this.discountFactor;
+}
+```
 
 <br>
 
