@@ -1651,10 +1651,66 @@ class Person {
 <br>
 
 ### 7.6 클래스 인라인하기
+### 7.6.1 설명
+- 클래스 추출하기의 반대. 역할을 옮기는 리팩토링을 하다보니 클래스에 남은 역할이 없을 때 이런 현상이 자주 생긴다. 역할이 없는 클래스를 많이 사용하는 클래스로 흡수시킨다.
 
 <br>
 
+### 7.6.2 예시
+```js
+class TrackingInformation {
+  get shippingCompany() { return this._shippingCompany; }
+  set shippingCompany(arg) { this._shippingCompany = arg; }
+  get trackingNumber() { return this._trackingNumber; }
+  set trackingNumber(arg) { this._trackingNumber = arg; }
+  get display() {
+    return `${this.shippingCompany}: ${this.trackingNumber}`;
+  }
+}
+
+class Shipment {
+  get trackingInfo() {
+    return this._trackingInformation.display;
+  }
+  get trackingInformation() { return this._trackingInformation; }
+  set trackingInformation(aTrackingInformation) {
+    this._trackingInformation = aTrackingInformation;
+  }
+}
+```
+- `TrackingInformation`을 `Shipment`로 옮겨야 한다. 우선 `TrackingInformation`의 메서드를 직접 호출하는 부분을 찾는다.
+```js
+// client..
+aShipment.trackingInformation.shippingCompany = request.vendor;
+```
+- 이 메서드를 `Shipment`로 옮긴다. 이 때 `Shipment`에 위임함수를 만들고 클라이언트에서 이를 호출하도록 변경하는 방식으로 한다.
+
+```js
+class Shipment {
+
+  // 함수 옮기기..
+  set shippingCompany(arg) { this._trackingInformation.shippingCompany = arg;}
+}
+
+// client
+aShipment.shippingCompany = request.vendor;
+```
+- 클라이언트에서 호출하는 `TrackingInformation`의 모든 요소를 이런식으로 `Shipment`로 옮긴다. 그리고 직접 클라이언트에서 직업 호출되지 않는 남는 부분(`Shipment에서` 호출하는 부분)도 옮긴다. 다 옮기면 `TrackingInformation`는 삭제하믄 된다.
+```js
+class Shipment {
+  get shippingCompany() { return this._shippingCompany; }
+  set shippingCompany(arg) { this._shippingCompany = arg; }
+  get trackingNumber() { return this._trackingNumber; }
+  set trackingNumber(arg) { this._trackingNumber = arg; }
+  get display() {
+    return `${this.shippingCompany}: ${this.trackingNumber}`;
+  }  
+}
+
+```
+
 ### 7.7 위임 숨기기
+
 
 <br>
 
