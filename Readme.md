@@ -1609,10 +1609,10 @@ get price() {
 <br>
 
 ### 7.5.2 절차
-- 클래스를 쪼개고, 필드를 옮긴다.
-- 이후 메서드를 옮긴다. 이 때 저수준의 메서드(주로 호출당하는, private 같은거)를 먼저 옮긴다.
-- 양 클래스의 인터페이스를 살펴보고 불필요한건 제거한다.
-- 새 클래스를 외부로 노출할지 정한다. 노출하게 되면 새 클레스에 `참조를 값으로 바꾸기`를 적용하면 좋을지 확인해본다.
+1. 클래스를 쪼개고, 필드를 옮긴다.
+2. 이후 메서드를 옮긴다. 이 때 저수준의 메서드(주로 호출당하는, private 같은거)를 먼저 옮긴다.
+3. 양 클래스의 인터페이스를 살펴보고 불필요한건 제거한다.
+4. 새 클래스를 외부로 노출할지 정한다. 노출하게 되면 새 클레스에 `참조를 값으로 바꾸기`를 적용하면 좋을지 확인해본다.
 
 <br>
 
@@ -1710,7 +1710,44 @@ class Shipment {
 ```
 
 ### 7.7 위임 숨기기
+### 7.7.1 🔥설명🔥
+- 모듈화 설계의 핵심은 캡슐화다. 캡슐화의 기본은 필드를 숨기는 것인데, 이것의 의미는 단순히 필드를 숨기는게 아니라 `객체`의 필드가 가리키는 객체(`위임 객체`)를 숨겨, `객체`를 사용하는 쪽(클라)에서 `위임 객체`의 인터페이스가 변해도 코드를 수정할 필요가 없어지게 해준다.(클라는 위임 객체를 몰라도 된다. 위임 객체에 의존하는 객체만 바꿔주면 된다.)
 
+<br>
+
+### 7.7.2 🔥절차🔥
+1. `위임 객체`의 각 메서드에 해당하는 위임 메서드를 이를 의존하는 `객체`에 생성한다.
+2. `클라이언트`가 `위임 객체` 대신 `객체`를 호출하도록 수정한다.
+3. 모두 수정했다면 `객체`에서 `위임 객체`로의 접근자를 제거한다.(private)
+
+<br>
+
+### 7.7.3 🔥예시🔥
+```js
+class Person {
+  get department() { return this._department; }
+  set department(arg) { this._department = arg; }
+}
+
+class Department {
+  get charCode() { return this._charCode; }
+  set charCode(arg) { this._charCode = arg; } 
+}
+
+// client
+charCode = aPerson.department.charCode;
+```
+- 클라이언트는 charCode를 얻기 위해 `Person`의 필드인 `Departement`(위임객체)를 직접 접근하고있다. 이를 숨겨보자.
+```js
+class Person {
+  // get department() { return this._department; }
+  get charCode() { return this._department.charCode; }
+}
+
+// client
+charCode = aPerson.charCode;
+```
+- `Persone`에서 `Departement`로의 접근자도 깔끔하게 제거했다.
 
 <br>
 
