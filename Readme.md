@@ -1601,6 +1601,52 @@ get price() {
 <br>
 
 ### 7.5 클래스 추출하기
+### 7.5.1 설명
+- ***'클래스는 반드시 명확하게 추상화 하고 소수의 주어진 역할만 처리해야 한다.'***는 원칙에 따라 클래스를 쪼갠다.
+- 일부 데이터와 메서드를 따로 묶을 수 있다면 이것은 어서 분리하라는 신호다.
+- 함께 변경되는 일이 많거나 서로 의존하는 데이터는 분리한다.
+
+<br>
+
+### 7.5.2 절차
+- 클래스를 쪼개고, 필드를 옮긴다.
+- 이후 메서드를 옮긴다. 이 때 저수준의 메서드(주로 호출당하는, private 같은거)를 먼저 옮긴다.
+- 양 클래스의 인터페이스를 살펴보고 불필요한건 제거한다.
+- 새 클래스를 외부로 노출할지 정한다. 노출하게 되면 새 클레스에 `참조를 값으로 바꾸기`를 적용하면 좋을지 확인해본다.
+
+<br>
+
+### 7.5.3 예시
+- 아래 `Person`클래스는 이름과 전화번호 데이터/메서드를 가지고 있다.
+```js
+class Person {
+  // constructor.. 
+
+  get name() { return this._name; }
+  set name(arg) { this._name = arg; }
+  get telephoneNumber() { return `(${this.officeAreaCode} ${this.officeNumber})`; }
+  get officeAreaCode() { return this._officeAreaCode; }
+  set officeAreaCode(arg) { this._officeAreaCode = arg; }
+  get officeNumber() { return this._officeNumber; }
+  set officeNumber(arg) { this._officeNumber = arg; }
+}
+```
+- 전화번호를 `TelephoneNumber`클래스로 분리한다.
+```js
+class TelephoneNumber {
+  get telephoneNumber() { return `(${this.officeAreaCode} ${this.officeNumber})`; }
+  get officeAreaCode() { return this._officeAreaCode; }
+  set officeAreaCode(arg) { this._officeAreaCode = arg; }
+  get officeNumber() { return this._officeNumber; }
+  set officeNumber(arg) { this._officeNumber = arg; }
+}
+
+class Person {
+  public telephoneNumber: TelephoneNumber;
+}
+```
+- `Person`클래스에 `TelephoneNumber`를 public 프로퍼티로 둬서 외부에서 `TelephoneNumber`에 직접 접근할 수 있게 한다. 이러면 `areaCode`, `officeNumber`같은 프로퍼티는 Person에서는 신경쓸 필요가 없어진다.(private으로 한 경우에는 이야기가 달라진다.)
+
 
 <br>
 
