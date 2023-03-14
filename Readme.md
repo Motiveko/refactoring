@@ -1752,8 +1752,39 @@ charCode = aPerson.charCode;
 <br>
 
 ### 7.8 중개제 제거하기
+### 7.8.1 설명
+- 위임 숨기기의 반대
+- 클라이언트가 `위임 객체`의 또 다른 기능을 사용하고 싶을 때마다 `서버`에 위임 메서드를 추가해야 하는데, 이게 너무 많아지면 서버가 단순히 중재자가 되어 버려 그냥 직접 위임 객체를 쓰는게 나아진다.
+- 추상화도 정도껏 잘 하는게 중요하다는 것.
+
+### 7.8.2 절차
+1. 위임 객체를 얻는 게터를 만들고
+2. 모든 위임 메서드 호출이 이 게터를 거치도록 하고
+3. 모든 위임 메서드는 제거한다.
+
+### 7.8.3 예시
+```js
+manager = aPerson.manager;
+
+class Person {
+  get Person() { return this._department.manager; }
+}
+
+class Department {
+  get manager() { return this._manager; }
+}
+```
+- 위임제거
+```js
+class Person {
+  get department() { return this._department; }
+}
+manager = aPerson.department.manager;
+```
+
 
 <br>
+
 
 ### 7.9 알고리즘 교체하기
 
