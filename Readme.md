@@ -1510,6 +1510,7 @@ orders.filter(o => o.priority.higherThan(new Priority("normal"))).length
 <br>
 
 ### 7.3.3 예시
+1. STEP 1
 - 간단한 Order 클래스를 살펴보자. 주문의 우선순위(priority)속성을 간단한 문자열로 표현한다.
 ```js
 class Order {
@@ -1523,15 +1524,85 @@ highPriorityCount = orders.filter(
   (o) => "high" === o.priority || "rush" === o.priority
 ).length;
 ```
-- 변수를 캡슐화한다.
+- 변수를 캡슐화한다. 그리고 실질적인 값인 문자열을 반환하는 함수도 필요하다. 
 ```js
-class Order {
-  // ..
-
-  get priority() { return this._priority; }
-  set priority(aString) { this._priority = aString; }
+class Priority {
+  constructor(value) { this._value = value; }
+  toString() { return this._value; }
 }
 ```
+- 게터를 만들어도 되지만 이런 상황에서는 `toString()`이 더 적절하다.
+- `Order`클래스를 맞춰서 수정한다. 
+```js
+class Order {
+  get priorityString() { return this._priority.toString(); }
+  set priorityString(aString) { this._priority = new Priority(aString); }
+}
+```
+- `toString()` 호출값을 반환하기 때문에  `get priorityString()`으로 게터 이름을 지었다.
+- 클라 코드는 아래와 같이 바뀔것이다.
+```js
+highPriorityCount = orders.filter(
+  (o) => "high" === o.priorityString || "rush" === o.priorityString
+).length;
+```
+
+<br>
+
+2. STEP 2
+- 여기서 `Priority`라는 `위임 객체`를 캡슐화 하는게 맞을까? 아니라고 본다. 따라서 클라에서 `Priority`를 직접 사용 가능하도록 `Order`클래스에 게터를 제공한다.
+```js
+class Order {
+  get priority { return this._priority; }
+  // get priorityString() { return this._priority.toString(); }
+  // set priorityString(aString) { this._priority = new Priority(aString); }
+}
+
+// 클라이언트
+highPriorityCount = orders.filter(
+  (o) => "high" === o.priority.toString() || "rush" === o.priority.toString()
+).length;
+```
+- `Order`의 priority 세터가 `Priority`객체도 받을 수 있도록 `Priority`의 생성자를 수정한다.
+```js
+class Priority {
+  constructor(value) {
+    if(value instanceof Priority) return value;
+    this._value = value;
+  }
+}
+```
+- `Priority`클래스를 굳이 만든건 새로운 동작을 담기 위해서다. 우선순위 값을 검증하고 비교하는 로직을 추가한다.
+```js
+class Priority {
+  constructor(value) {
+    if(value instanceof Priority) return value;
+    // 값의 유효성 검증
+    if(Priority.legalValues().includes(value))
+      this._value = value;
+    else
+      throw new Error(`<${value}>는 유효하지 않은 우선순위입니다.`);
+  }
+
+  toString() { return this._value; }
+  // 우선순위
+  get _index() { return Priority.legalValues().findIndex(s => s === this._value); }
+
+  // 우선순위 순서대로, 유효한 값들의 배열(static)
+  static legalValues() { return ['low', 'normal', 'high', 'rush']; }
+
+  // 우선순위는 _index로 구분한다.
+  equals(other) { return this._index === other._index; }
+  higherThan(other) { return this._index > other._index; }
+  lowerThan(other) { return this._index <> other._index; }
+}
+
+// 클라
+highPriorityCount = orders.filter(
+  (o) => o.priority.higherThan(new Priority('normal'))
+).length;
+```
+- 위와같이 `Priority`를 객체로 만들면 `higherThan`로직도 넣고, 추가로 `값 validation`, `lowerThan()`, `equals()` 등의 다양한 기능들을 손쉽게 추가할 수 있게 된다.
 
 <br>
 
@@ -1611,9 +1682,9 @@ get price() {
 
 <br>
 
-### 7.5 클래스 추출하기
+### 7.5 🔥 클래스 추출하기
 ### 7.5.1 설명
-- ***'클래스는 반드시 명확하게 추상화 하고 소수의 주어진 역할만 처리해야 한다.'***는 원칙에 따라 클래스를 쪼갠다.
+- ***'클래스는 반드시 명확하게 추상화 하고 소수의 주어진 역할만 처리해야 한다.'*** 는 원칙에 따라 클래스를 쪼갠다.
 - 일부 데이터와 메서드를 따로 묶을 수 있다면 이것은 어서 분리하라는 신호다.
 - 함께 변경되는 일이 많거나 서로 의존하는 데이터는 분리한다.
 
@@ -1799,7 +1870,7 @@ manager = aPerson.department.manager;
 - 어떤 목적을 달성하는 방법은 여러가지인데, 더 쉬운 방법을 찾으면 그걸로 교체한다.
 - 리팩터링은 복잡한 대상을 단순한 단위로 나누는 것으로 코드를 단순하게 만든다.
 - 하지만 때론 알고리즘 전체를 교체하는게 쉬울 때가 있다. **예를 들면 내 동작과 같은 동작을 하는 라이브러리를 찾는것이다.**
-- 사실 이걸 하려면 ***먼저 메서드를 가능한 잘게 나눠야 한다.*** 거대하고 복잡한 알고리즘은 교체하기 어렵다.
+- 🔥 사실 이걸 하려면 ***먼저 메서드를 가능한 잘게 나눠야 한다.*** 거대하고 복잡한 알고리즘은 교체하기 어렵다.
 
 <br>
 
