@@ -1891,6 +1891,99 @@ manager = aPerson.department.manager;
 
 ## 8. 기능 이동
 ### 8.1 함수 옮기기
+### 8.1.1 설명
+- 좋은 소프트웨어 설계의 핵심은 모듈화가 얼마나 잘 되어있는지를 뜻하는 모듈성이다. 모듈성이란 어딘가 수정하려 할 때 해당 기능의 작은 일부만 이해해도 수정이 가능하게 해주는 능력이다.
+- 함수는 어떤 컨텍스트(객체지향에선 보통 클래스) 안에 존재한다. 
+- 어떤 함수가 자신이 속한 모듈 A보다 다른 모듈 B의 요소를 더 많이 참조한다면 함수는 B 모듈로 옮겨줘야 한다.
+- 함수의 호출자들의 위차나 다음 업데이트 때 바뀌리라 예상되는 위치들에 따라서도 함수를 옮껴야 할 수도 있다.
+- 이런건 코드와 비즈니스로직을 잘 이해하면 점점 어디에 있어야 할 지 보이게 된다.( 함수를 어떤 컨텍스트에 위치시켜야 할 지)
+
+<br>
+
+### 8.1.2 절차
+- 옮길 함수가 현재 컨텍스트에서 사용중인 모든 요소를 살펴보고, 함께 옮길것도 찾아보자.
+  - 함께 옮길것이 여러개라면 작은것부터 옮긴다.
+- 함수가 다형 메서드인지 확인하자.(슈퍼/서브 클래스에도 선언된거면 그것도 고려해서 옮겨야한다.)
+- 선택 함수를 타깃 컨텍스트에 복사한다.
+- 정적 분석을 수행한다.
+  - 소스 컨텍스트에 있는 요소를 참조하고 있을 경우 에러가 뜰것이다.
+- 소스 컨텍스트에서 타깃 함수를 참조할 방법을 찾아 반영한다.(인수로 전달 등..)
+- 소스 함수가 타깃 함수의 위임 함수가 되도록 한다
+- 테스트
+- 위임 함수를 제거하고 소스 함수를 인라인 해도 될 지 고민해보자.
+  - 보통은 위임하는것보다 옮긴 함수를 인라인 하는게 낫다.
+
+<br>
+
+
+
+### 8.1.3 예시
+- GPS 계산 함수는 생략
+- 다른클래스로 옮기는 방법을 살펴보자
+```js
+class Account {
+  // ... 
+
+  get bankCharge() {
+    let result = 4.5;
+    if(this._daysOverdrawn > 0) result += this.overdraftCharge;
+    return result;
+  }
+
+  get overdraftCharge() { // 초과 인출 이자 계산
+    if(this.type.isPremium) {
+      const baseCharge = 10;
+      if(this.daysOverdrawn <= 7) {
+        return baseCharge;
+      } else {
+        return baseCharge + (this.daysOverdrawn - 7) * 0.85;
+      }
+    }
+    return this.daysOverdrawn * 1.75;
+  }
+}
+```
+- 계좌 종류(type)에 따라 이자 책정 알고리즘을 계속 변경해야한다고 해보자. 이렇게 되면 `overdraftCharge()`을 `AccountType(this.type)`객체로 옮겨주는 게 낫다.
+```js
+class AccountType {
+  overdraftCharge(daysOverdrawn) { // 1
+    if(this.type.isPremium) {
+      const baseCharge = 10;
+        if(daysOverdrawn <= 7) {
+          return baseCharge;
+        } else {
+          return baseCharge + (daysOverdrawn - 7) * 0.85;
+        }
+    }
+    return daysOverdrawn * 1.75;
+  }
+}
+
+class Account {
+  //...
+
+  get overdraftCharge() { // 2
+    return this.type.overdraftCharge(this.daysOverdrawn)
+  }
+}
+```
+- 1. `AccountType.overdraftCharge`에 `Account.daysOverdrawn`을 인자로 전달했다(소스 컨텍스트의 참조)
+  - 여기서는 한개만 참조하면 되기 때문이지만, `Account` 클래스(컨텍스트)의 많은 요소를 참조한다면 `Account`를 통째로 전달한다. 
+- 2. Account의 `get overdraftCharge()`은 위임함수로 쓰여졌다. 이 예제에서는 위임함수가 별로 필요 없을 것 같다. 따라서 인라인 해보면 
+```js
+class Account {
+  // ...
+  get bankCharge() {
+    let result = 4.5;
+    if(this._daysOverdrawn > 0) result += this.type.overdraftCharge(this.daysOverdrawn);
+    return result;
+  }
+}
+```
+- 요렇게 `type.overdraftCharge()`을 인라인으로 바로 호출하면 된다.
+
+<br>
+
 ### 8.2 필드 옮기기
 ### 8.3 문장을 함수로 옮기기
 ### 8.4 문장을 호출한 곳으로 옮기기
