@@ -1985,6 +1985,159 @@ class Account {
 <br>
 
 ### 8.2 필드 옮기기
+```js
+// AS-IS
+class Customer {
+  get plan() { return this._plan; }
+  get discountRage() { return this._discountRate; }
+}
+
+// TO-BE
+class Customer {
+  get plan() { return this._plan; }
+  get discountRate() { return this.plan.discountRate; }
+}
+```
+### 8.2.1 설명
+- 주어진 문제에 적합한 데이터 구조를 활용하면 동작 코드는 자연스럽게 단순하고 직관적으로 바뀐다. 데이터 구조가 이상하면 자연스럽게 복잡해진다.
+- 이건 설계의 영역인데, `도메인 주도 설계` 같은걸 공부하면 좋다.
+- 근데 아무리 공부해도 초기 설계에서 실수가 나와서 리팩토링을 해야 할 수 밖에 없어진다. 
+- 예를들어
+  - 함수에 어떤 레코드를 넘길 때 마다 다른 레코드를 같이 넘기는 경우 => 묶어야지?
+  - 한 레코드를 변경하려 할 때 다른 레코드를 변경해야 하는 경우 => 필드 위치가 분명 잘못된거다. 한 곳만 수정하게 바뀌어야 한다.
+- 이럴 때 필드 옮기기가 필요하다.
+- 레코드(객체리터럴) 말고 캡슐화가 된 클래스 데이터는 훨씬 쉬워진다.
+
+<br>
+
+### 8.2.2 절차
+1. 소스 필드를 캡슐화한다.
+2. 타깃 객체에 필드(접근자)를 생성한다.
+3. 소스 객체에서 타깃 객체를 참조할 수 있는지 확인한다.
+4. 접근자가 타깃 필드를 사용하도록 수정한다.
+- 여러 소스에서 같은 타깃을 공유한다면, a
+5. 소스 필드를 제거한다.
+
+<br>
+
+### 8.2.3 예시
+1. `Customer`에서 `CustomerContract`로 `discountRate`를 옮기려한다.
+```js
+class Customer {
+  constructor(name, discountRate) {
+    this._name = name;
+    this._discountRate = discountRate;
+    this._cotract = new CustomerContract(dateToday());
+  }
+
+  get discountRate() { return this._discountRate; }
+  becomePreferred() {
+    this._discountRate += 0.3;
+    // ...
+  }
+
+  applyDiscountRate(amount) {
+    return amount.substract(amount.multiply(this._discountRate));
+  }
+}
+
+class CustomerContract {
+  constructor(statrDate) {
+    this._startDate = startDate;
+  }
+}
+```
+- `Custmoer`에서 변수 캡슐화한다.
+```js
+class Customer{
+  // ....
+  _setDiscountRate(aNumber) { this._discountRate = aNumber; }
+    becomePreferred() {
+    this._setDiscountRate(this.discountRate + 0.3);
+    // ...
+  }
+    applyDiscountRate(amount) {
+    return amount.substract(amount.multiply(this.discountRate));
+  }
+}
+```
+2. `CustomerContract`에 옮기려는 `discountRate` 필드와 접근자를 추가한다.
+```js
+class CustomerContract {
+  constructor(statrDate, discountRate) {
+    this._startDate = startDate;
+    this._discountRate = discountRate;
+  }
+  get discountRate() { return this._discountRate; }
+  set discountRate(arg) { this._discountRate = arg; }
+}
+```
+3. `Customer`의 접근자들이 새 필드(`CustomerContract.discountRate`)를 사용하도록 변경한다. 하다보면 `Customer`의 `discountRate`필드가 지워지면서 생성자의 `this._discountRate = discountRate;`부분에서 에러가 나는데, 이런건 알아서 적절하게 치료해준다.
+```js
+class Customer {
+  constructor(name, discountRate) {
+    this.name = name;
+    this._cotract = new CustomerContract(dateToday());
+  }
+  get discountRate() { return this._cotract.discountRate; }
+  _setDiscountRate(aNumber) { return _cotract.discountRate = aNumber; }
+}
+```
+
+<br>
+
+2. 공유 객체로 이동하기(복잡)
+- 이자율을 계좌(`Account`)별로 설정하고 있는데, 이를 계좌 타입(`AccountType`)별로 정해지도록 하고 싶다.
+```js
+class Account {
+  constructor(number, type, interestRate) {
+    this._number = number;
+    this._type = type;
+    this._interestRate = interestRate;
+  }
+  get interestRate() { return this._interestRate; }
+}
+
+class AccountType {
+  constructor(nameString) {
+    this._name = nameString;
+  }
+}
+```
+- 이자율 필드는 캡슐화 되어있다. `AccountType`에 `interestRate` 필드와 접근자를 만든다.
+```js
+class Accounttype {
+  constructor(nameString, interestRate) {
+    this._name = nameString;
+    this._interestRate = interestRate;
+  }
+  get interestRate() { return this._interestRate; }
+}
+```
+- `Account`에서 `AccountType`의 이자율을 가져오도록 수정하면 문제가 될 수 있다. 이전에는 각 계좌마다 자신의 이자율을 가지고 있었는데, 이제는 계좌 종류가 같으면 같은 이자율을 가지길 원하는 상태인데, 이게 계좌마다 이전과 동일한 이자율을 가지게 되는지는 알 수가 없기 때문( `Account` 인스턴스 생성시에 type과 interestRate가 딱 db같은데서 이미 묶여있어서 동일하게 들어갔다는 보장이 있다면 모를까? )
+- **수정 전과 후의 겉보기 동작이 달라지기 때문에 더 이상 리팩토링이 아니다.**
+- 이런 경우 db를 확인해서 모든 계좌의 이자율이 계좌 종류에 부합하게 설정되어있는지 확인하는게 젤 좋고, 코드레벨에서는 `Account` 생성자에 `assertion`을 추가하거나 뭐 에러 로깅하거나 이런걸 할 수 있다.
+```js
+class Account {
+  constructor(number, type, interestRate) {
+    this._number = number;
+    this._type = type;
+    assert(interestRate === this._type.interestRate);
+    this._interestRate = interestRate;
+  }
+  get interestRate() { return this._interestRate; } // 일단 모니터링 하면서, 기존 Account의 interestRate 값을 그대로 쓴다.
+}
+```
+- 이렇게 운영하면서 오류가 나는지 확인해보고, assertion을 다 통과한다고 생각되면 `Account`의 `interestRate`접근자를 아래와 같이 수정한다.
+```js
+class Account {
+  // ...
+  get interestRate() { return this._type.interestRate; }
+}
+```
+
+<br>
+
 ### 8.3 문장을 함수로 옮기기
 ### 8.4 문장을 호출한 곳으로 옮기기
 ### 8.5 인라인 코드를 함수 호출로 바꾸기
