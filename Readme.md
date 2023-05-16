@@ -1891,6 +1891,17 @@ manager = aPerson.department.manager;
 
 ## 8. 기능 이동
 ### 8.1 함수 옮기기
+```js
+// 함수를
+class Account {
+  get overdraftCharge() { ... }
+}
+
+// 옮긴다
+class AccountType {
+  get overdraftCharge() { ... }
+}
+```
 ### 8.1.1 설명
 - 좋은 소프트웨어 설계의 핵심은 모듈화가 얼마나 잘 되어있는지를 뜻하는 모듈성이다. 모듈성이란 어딘가 수정하려 할 때 해당 기능의 작은 일부만 이해해도 수정이 가능하게 해주는 능력이다.
 - 함수는 어떤 컨텍스트(객체지향에선 보통 클래스) 안에 존재한다. 
@@ -2015,7 +2026,7 @@ class Customer {
 2. 타깃 객체에 필드(접근자)를 생성한다.
 3. 소스 객체에서 타깃 객체를 참조할 수 있는지 확인한다.
 4. 접근자가 타깃 필드를 사용하도록 수정한다.
-- 여러 소스에서 같은 타깃을 공유한다면, a
+- 여러 소스에서 같은 타깃을 공유한다면, 먼저 세터를 수정하여 타깃 필드와 소스 필드 모두 갱신하게하고(동기화), 이어서 일관성을 깨트리는 갱신을 검출할 수 있도록 `assertion`같은걸 추가한다. 모든게 잘 마무리되었다면 접근자들이 타깃 필드를 사용하도록 수정한다.
 5. 소스 필드를 제거한다.
 
 <br>
@@ -2052,11 +2063,11 @@ class CustomerContract {
 class Customer{
   // ....
   _setDiscountRate(aNumber) { this._discountRate = aNumber; }
-    becomePreferred() {
+  becomePreferred() {
     this._setDiscountRate(this.discountRate + 0.3);
     // ...
   }
-    applyDiscountRate(amount) {
+  applyDiscountRate(amount) {
     return amount.substract(amount.multiply(this.discountRate));
   }
 }
