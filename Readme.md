@@ -2265,6 +2265,114 @@ function emitPhoto(photo) {
 <br>
 
 ### 8.4 문장을 호출한 곳으로 옮기기
+```js
+// AS-IS
+emitPhotoData(outStream, person.photo);
+
+function emitPhotoData(outStream, photo) {
+  outStream.write(`<p>제목: ${photo.title}</p>\n`);
+  outStream.write(`<p>위치: ${photo.location}</p>\n`);
+}
+
+// TO-BE
+emitPhotoData(outStream, person.photo);
+outStream.write(`<p>위치: ${photo.location}</p>\n`);
+
+function emitPhotoData(outStream, photo) {
+  outStream.write(`<p>제목: ${photo.title}</p>\n`);
+}
+```
+### 8.4.1 설명
+- `함수`는 추상화의 기본 빌딩 블록이다. 근데 추상화라는 것이 그 경계를 항상 올바르게 긋는게 어렵다.
+- 코드베이스의 기능 범위가 달라지면 추상화 경계도 움직이고, 이에 따라 초기에는 응집도 높고 한가지 일만 하던 함수가 어느새 둘 이상의 다른 일을 하고 있게 된다.
+- 여러 곳에서 사용하던 기능이 일부 호출자에게 다르게 동작하도록 바뀌어야 한다면 이런 일이 벌어진다.
+  - 달라진 동작을 함수에서 꺼내고 호출자들로 일일이 옮겨줘야 한다.
+- `문장 슬라이드하기`로 달라지는 동작을 함수의 시작or끝으로 옮기고 `문장을 호출한 곳으로 옮기기`를 적용하면 된다.
+
+<br>
+
+### 8.4.2 절차
+1. 피호출 함수의 처음 or 마지막 줄에 빼낼 문장을 옮긴 뒤, 이걸 잘라내서 함수 호출부에 가서 붙여넣는다.(필요시 적당한 수정). 테스트도 한다.(보통 이걸로 끝남)
+
+<br>
+
+좀 더 복잡하지만 안전한 방식
+
+1. 함수 내에서 이동하지 않기 윈하는 모든 문장을 `함수로 추출`한 다음 적절한 이름을 붙인다.
+2. 함수 호출부에 가서 원래 함수를 인라인 한다.(추출 함수 + 문장)
+3. 원래 함수 제거하고 추출 함수의 이름을 원래 함수로 바꿔준다.
+
+<br>
+
+### 8.4.3 예시
+```js
+function renderPerson(outStream, person) {
+  outStream.write(`<p>${person.name}</p>\n`)
+  renderPhto(outSteram, person.photo);
+  emitPhotoData(outStream, person.photo);
+}
+
+function listRecentPhotos(outStream, photos) {
+  photos
+    .filter(p => p.date > recentDateCutoff())
+    .forEach(p => {
+      outStream.write("<div>\n")
+      emitPhotoData(outStream, p);
+      outStream.write("</div>\n")
+    })
+}
+
+function emitPhotoData(outStream, photo) {
+  outStream.write(`<p>제목: ${photo.title}</p>\n`);
+  outStream.write(`<p>날짜: ${photo.date.toDateString()}</p>\n`);
+  outStream.write(`<p>위치: ${photo.location}</p>\n`);
+}
+```
+- `renderPerson()`은 그대로 두고 `listRecentPhotos()`에서 위치 정보를 다르게 렌더링 해야 한다.
+- `emitPhotoData()`에서 남길 코드를 함수로 추출한다.
+```js
+function emitPhotoData(outStream, photo) {
+  tempFunction(outStream, photo);
+  outStream.write(`<p>위치: ${photo.location}</p>\n`);
+}
+function tempFunction(outStream, photo) {
+  outStream.write(`<p>제목: ${photo.title}</p>\n`);
+  outStream.write(`<p>날짜: ${photo.date.toDateString()}</p>\n`);
+}
+```
+- `emitPhotoData()`호출하는 곳 마다 찾아가 `tempFunction()`와 문장을 호출하도록 인라인한다.
+```js
+function renderPerson(outStream, person) {
+  outStream.write(`<p>${person.name}</p>\n`)
+  renderPhto(outSteram, person.photo);
+  tempFunction(outStream, person.photo);
+  outStream.write(`<p>위치: ${person.photo.location}</p>\n`);
+}
+
+function listRecentPhotos(outStream, photos) {
+  photos
+    .filter(p => p.date > recentDateCutoff())
+    .forEach(p => {
+      outStream.write("<div>\n")
+      emitPhotoData(outStream, p);
+      tempFunction(outStream, p);
+      outStream.write(`<p>위치: ${p.location}</p>\n`);
+      outStream.write("</div>\n")
+    })
+}
+```
+- 원래 함수를 지워 함수 인라인을 마무리한다. 그리고 추출한`tempFunction()`의 이름을 `emitPhotoData()`로 되돌려준다.
+
+```js
+function emitPhotoData(outStream, photo) {
+  outStream.write(`<p>제목: ${photo.title}</p>\n`);
+  outStream.write(`<p>날짜: ${photo.date.toDateString()}</p>\n`);
+}
+```
+
+
+<br>
+
 ### 8.5 인라인 코드를 함수 호출로 바꾸기
 ### 8.6 문장 슬라이드하기
 ### 8.7 반복문 쪼개기
