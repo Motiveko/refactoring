@@ -2150,6 +2150,120 @@ class Account {
 <br>
 
 ### 8.3 문장을 함수로 옮기기
+```js
+// AS-IS
+result.push(`<p>제목: ${person.photo.title}</p>`);
+result.concat(photoData(person.photo));
+
+function photoData(aPhoto) {
+  return [
+    `<p>위치: ${aPhoto.location}</p>`,
+    `<p>날짜: ${aPhoto.date.toDateString()}</p>`,
+  ]
+}
+
+// TO-BE
+result.concat(photoData(person.photo));
+function photoData(aPhoto) {
+  return [
+    `<p>제목: ${person.photo.title}</p>`,
+    `<p>위치: ${aPhoto.location}</p>`,
+    `<p>날짜: ${aPhoto.date.toDateString()}</p>`,
+  ]
+}
+```
+
+<br>
+
+### 8.3.1 설명
+- `중복 제거`는 코드를 건강하게 관리하는 방법 중 하나.
+  - 특정 함수 호출시 그 앞뒤로 똑같은 코드가 실행되는 모습이 관찰된다면? => 하나의 함수로 합친다.
+- 이렇게 합쳐진 함수가 나중에 다시 쪼개야 할 때는 반대 리팩터링인 `문장을 호출한 곳으로 옮기기`를 하면 된다.
+- 문장을 함수로 옮기려면, 문장들이 피호출 함수의 일부라는 확신이 있어야 한다.
+- 일부가 아니지만 함께 호출 되어야 한다면, 문장과 피호출 함수를 통째로 `하나의 함수로 추출`하면 된다.
+
+<br>
+
+### 8.3.2 절차
+1. 반복 코드가 함수 호출 부분과 멀리 떨어져 있다면, `문장 슬라이드하기`를 적용해 근처로 옮긴다.
+2. 타깃 함수를 호출하는 곳이 한 곳 뿐이라면, 소스에서 문장 코드를 잘래서 피호출 함수로 복사하고 테스트하면 끝.
+3. 호출자가 여러곳이면, 한 곳에서 타깃 함수 호출과 문장을 함께 `다른 함수로 추출`한다.
+4. 나머지 호출자들 하나씩 찾아가서 추출한 함수를 호출하도록 한다.
+5. 모든 호출자가 추출한 함수를 호출하면, 원래 함수는 `새로운 함수 안으로 인라인`한 후 지운다.
+6. 새로운 함수(추출한 함수)의 이름을 원래 함수 이름으로 바꿔준다.
+
+<br>
+
+### 8.3.2 예시
+- 사진 데이터를 HTML로 만드는 코드다.
+```js
+function renderPerson(outStream, person) {
+  const result = [];
+  result.push(`<p>${person.name}</p>`);
+  result.push(renderPhoto(person.photo));
+  result.push(`<p>제목: ${person.photo.title}</p>`); // 문장
+  reslut.push(emitPhotoData(person.photo)); // 함수
+  return result.join('\n');
+}
+
+function photoDiv(photo) {
+  return [
+    '<div>',
+    `<p>제목: ${photo.title}</p>`,
+    emitPhotoData(photo),
+    '</div>'
+  ].join('\n');
+}
+
+function emitPhotoData(aPhoto) {
+  const result = [];
+  result.push(`<p>위치: ${aPhoto.location}</p>`);
+  result.push(`<p>위치: ${aPhoto.date.toDateString()}</p>`);
+  return result.join('\n');
+}
+```
+- '제목 출력'(문장)과 `emitPhotoData()`를 연달아 호출하는 부분이 두개가 있다. 우선 한 쪽 호출(`photoDiv()`)에서 문장과 함수를 `다른 함수로 추출`한다.
+
+```js
+function photoDiv(photo) {
+  return [
+    '<div>',
+    newFunction(photo)
+    '</div>'
+  ].join('\n');
+}
+
+function newFunction(photo) {
+  return [
+    `<p>제목: ${photo.title}</p>`,
+    emitPhotoData(photo),
+  ].join('\n');
+}
+function emitPhotoDate(photo) { ... }
+```
+- `renderPerson()`로 가서 추출한 `newFunction()`이 적절하게 호출될 수 있게 해준다. 그리고 `newFunction()`에서 `emitPhoto()`를 인라인하고 `emitPhoto()` 는 지우고 `newFuction()` 이름을 `emitPhoto`로 바꿔준다.(함수 이름 바꾸기)
+```js
+function renderPerson(outStream, person) {
+  const result = [];
+  result.push(`<p>${person.name}</p>`);
+  result.push(renderPhoto(person.photo));
+  reslut.push(emitPhotoData(person.photo));
+  return result.join('\n');
+}
+
+function emitPhoto(photo) {
+  return [
+    `<p>제목: ${photo.title}</p>`,
+    `<p>위치: ${aPhoto.location}</p>`,
+    `<p>위치: ${aPhoto.date.toDateString()}</p>`
+  ].join('\n');
+}
+```
+- 예제에서 `emitPhoto()` + `제목 출력`을 `newFunction()`으로 다른 함수로 추출하거나 `emitPhoto()`를 마지막에 인라인 하는것이 IDE의 리팩토링 기능같은걸 해서는 자동으로 할 수 없다는걸 알 수 있다. 테스트 코드가 중요한 이유이다.
+
+
+<br>
+
 ### 8.4 문장을 호출한 곳으로 옮기기
 ### 8.5 인라인 코드를 함수 호출로 바꾸기
 ### 8.6 문장 슬라이드하기
