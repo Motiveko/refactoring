@@ -2406,6 +2406,66 @@ appliesToMass = states.includes("MA");
 
 
 ### 8.6 문장 슬라이드하기
+```js
+// AS-IS
+const pricingPlan = retrievePricingPlan();
+const order = retreiveOrder();
+let charge;
+const chargePerUnit = pricingPlan.unit;
+
+// TO-BE
+const pricingPlan = retrievePricingPlan();
+const chargePerUnit = pricingPlan.unit;
+const order = retreiveOrder();
+let charge;
+```
+
+<br>
+
+### 8.6.1 설명
+- 관련된 코드들이 가까이 모여있는게 이해하기 더 쉽다. 이렇게 모아주는걸 `문장 슬라이드`라고 한다.
+- 예를들어, 변수 선언을 함수 첫머리에 모으는것 보다 변수를 처음 사용할 때 선언하는 것.
+- 관련 코드를 모으는 작업은 다른 리팩터링(주로 `함수 추출하기`)의 사전작업이다.
+
+<br>
+
+### 8.6.2 절차
+1. 코드 조각(문장)이 이동할 목표 위치를 찾는다. 코드 조각을 모으고 나면 동작이 달라지는 코드가 있는지 살펴본다. 이동이 불가능 한 경우도 많다.
+2. 코드를 목표 위치로 옮긴다.
+3. 테스트한다.
+
+<br>
+
+### 8.6.3 예시
+- 아래 코드들을 슬라이드한다고 할 때 주의할 점들을 찾아보자.
+```js
+ 1 const pricingPlan = retrievePricingPlan();
+ 2 const order = retrieveOrder();
+ 3 const baseCharge = pricingPlan.base;
+ 4 let charge;
+ 5 const chargePerUnit = pricingPlan.unit;
+ 6 const units = order.units;
+ 7 let discount;
+ 8 charge = baseCharge + units * chargePerUnit;
+ 9 let discountableUnits = Math.max(units - pricingPlan.discountThreshold, 0);
+10 discount = discountableUnits * pricingPlan.discountFactor;
+11 if (order.isRepeat) discount += 20;
+12 charge = charge - discount;
+13 chargeOrder(charge);
+```
+1. 처음 일곱줄은 선언부로 주의할게 없다.
+2. `7 let discount;`를 `10 discount = di...`앞으로 옮기는건 상관 없다. 7~10에 `discount`를 참조하는 코드가 없기 때문이다
+3. `2 const order = ret..`도 `6 const units = ...`로 옮겨도 문제가 안된다. `retrieveOrder()`가 부수 효과(`pricingPlan`의 상태 변경)를 일으키지 않는다는 확신이 있다면.
+  - 이런 이유로 함수가 외부 상태를 변경시키는 부수 효과를 가지는건 안좋은 방식이다.
+  - 이렇게 부수효과를 없게 함수를 짜는걸 `명령-질의 분리 원칙`(command-query separation principle)이라고 한다.
+
+4. `11 if (order.isRepeat) discount += 20;`을 코드 끝으로 슬라이드 하고 싶어도 이는 불가능하다. 
+  - `11 if (order.isRepeat) discount += 20;`이 부수 효과를 가지기 때문(`discount` 상태 갱신)
+  - `12 charge = charge - discount;`도 부수 효과를 가진다.(`change` 상태 갱신)그리고 11의 부수효과로 인해 갱신될 여지가 있는 `discount`를 참조하고 있다.
+  - 이처럼 ***부수효과가 있는 코드를 슬라이드하거나 부수효과가 있는 코드를 건너뛰어야 하는 경우 신중해야한다.***
+
+<br>
+
 ### 8.7 반복문 쪼개기
 ### 8.8 반복문을 파이프라인으로 바꾸기
 ### 8.9 죽은 코드 제거하기
