@@ -2614,7 +2614,8 @@ function acquireData(input) {
 
 ```js
 function acquireData(input) {
-  return input.slice('\n')
+  const lines = input.split('\n'); // 이걸 인라인 하는것보다 이렇게 변수 이름으로 뭔지 나타내주는게 코드 로직이 더 잘 이해된다ㅣ
+  return lines
     .slice(1)
     .filter(line => line.trim() !== '')
     .map(line => line.split(','))
@@ -2626,3 +2627,8 @@ function acquireData(input) {
 <br>
 
 ### 8.9 죽은 코드 제거하기
+- 사용되지 않는 코드는 스스로 `절대 호출되지 않으니 무시해도 되는 함수다`라고 알려주지 않는다. 누가 헷갈려서 사용되지 않는 코드를 열심히 고치고 왜 기능수정이 안되나 삽질할 수 있다.
+- 이 코드가 필요해지면 어차피 git에서 가져올 수 있다.( 커밋 메시지 잘 쓰면 된다. 보통 찾을 일도 없다. )
+- 주석으로 처리하는 법도 있지만 역시 지우고 필요하면 git에서 찾아쓰는게 낫다.
+
+<br>
