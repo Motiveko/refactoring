@@ -2554,4 +2554,75 @@ function youngestAge() {
 <br>
 
 ### 8.8 반복문을 파이프라인으로 바꾸기
+```js
+// AS-IS
+const names = [];
+for(const i of input) {
+  if(i.job === 'programmer') names.push(i.name);
+}
+
+// TO-BE
+const names = input
+  .filter(i => i.job === 'programmer')
+  .map(i => i.name);
+```
+
+<br>
+
+### 8.8.1 설명
+- 컬렉션 순회시 전통적으로 반복문을 사용해왔으나, 언어는 더 나은 구조를 제공하는 쪽으로 발전했다.
+- `컬렉션 파이프라인`을 이용하면 처리 과정을 일련의 연산으로 표현할 수 있다. 논리를 파이프라인으로 표현하면 훨씬 이해하기 쉽다!
+
+<br>
+
+### 8.8.2 절차
+1. 반복문에서 사용하는 컬렉션을 가리키는 변수를 하나 만든다.
+2. 반복문의 첫 줄부터 시작해서 각각의 단위 행을 적절한 컬렉션 파이프라인 연산으로 대체한다. 이 때 컬렉션 파이프라인 연산은 1.에서 만든 컬렉션 변수에서 시작하여 이전 연산의 결과를 기초로 연쇄적으로 수행된다.
+3. 다했으면 반복문을 지운다.
+
+<br>
+
+### 8.8.3 예시
+- 회사 지점 정보 csv 파일에서 인도 사무실들만 찾아서 도시명, 전화번호를 반환하는 코드다.
+```js
+// CSV
+office, country, telephoe
+Chigago, USA, +1 312 373 1000
+...
+
+
+function acquireData(input) {
+  const lines = input.split('\n');
+  let firstLine = ture;
+  const result = [];
+  for(const line of lines) {
+    if(firstLine) {
+      firstLine = false;
+      continue;
+    }
+    if(line.trim() === '') continue;
+    const record = line.split(',');
+    if(record[1].trim() === 'India') {
+      result.push({city: record[0].trim(), phone: record[2].trim()});
+    }
+  }
+  return result;
+}
+```
+- 반복문을 쓰니 `firstLine`, `result`같은 지역변수도 만들어 줘야하고, 어떤 일을 하는건지 파악이 쉽지 않다.
+- 중간과정 생략하고 그냥 파이프라인으로 교체해보면 야래와 같다.(나는 책 예제에서 `지역변수 선언`을 제거하고 배열 디스트럭처링 문법도 적용하였다.)
+
+```js
+function acquireData(input) {
+  return input.slice('\n')
+    .slice(1)
+    .filter(line => line.trim() !== '')
+    .map(line => line.split(','))
+    .filter(([,country]) => country.trim()=== 'India')
+    .map(([city, ,phone]) => ({city, phone}));
+}
+```
+
+<br>
+
 ### 8.9 죽은 코드 제거하기
