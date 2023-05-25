@@ -2467,5 +2467,91 @@ let charge;
 <br>
 
 ### 8.7 반복문 쪼개기
+```js
+// AS-IS
+let averageAge = 0;
+let totalSalary = 0;
+for(const p of people) {
+  averageAge += p.age;
+  totalSalary += p.salary;
+}
+averageAge = averageAge / people.lenght;
+
+// TO-BE
+let totalSalary = 0;
+for(const p of people) {
+  totalSalary += p.salary;
+}
+
+let averageAge = 0;
+for(const p of people) {
+  averageAge += p.age;
+}
+
+averageAge = averageAge / people.lenght;
+```
+
+<br>
+
+### 8.7.1 설명
+- 반복문 하나가 두 가지 일을 수행하는 경우, 반복문 수정시 두 가지 일 모두를 잘 이해하고 진행해야 한다.(보통 구조체를 반환하거나 지역 변수를 활용하고 있을것이다.)
+
+- 반복문 두번 실행하면 불편할수도 있다.(우선 성능부터) 최적화는 코드를 깔끔하게 정리한 후 병목이 있으면 하면 된다.
+
+
+<br>
+
+### 8.7.2 절차
+1. 반복문을 복제해 두개로 만든다.
+2. 반복문이 중복되어 생기는 ***부수효과를 파악해서 제거***한다.
+3. 테스트
+4. 완료됐으면 각 반복문을 함수로 추출할지 고민해본다.
+
+<br>
+
+### 8.7.3 예시
+- 사람들의 전체 급여와 가장 어린 나이를 계산하는 코드
+```js
+let youngest = people[0] ? people[0]?.age : Infinity;
+let totalSalary = 0;
+for(const p of people) {
+  if(p.age < youngest) youngest = p.age;
+  totalSalary += p.salary;
+}
+
+return `최연소: ${youngest}, 총 급여: ${totalSalary}`;
+```
+- 반복문 쪼개고, 중복을 제거한다. 따로 부수효과는 없는듯하다.
+- 그리고 문장 슬라이드로 변수를 참조하는 반복문 근처로 모은다.
+```js
+let totalSalary = 0;
+for(const p of people) {
+  totalSalary += p.salary;
+}
+
+let youngest = people[0] ? people[0]?.age : Infinity;
+for(const p of people) {
+  if(p.age < youngest) youngest = p.age;
+  totalSalary += p.salary;
+}
+
+return `최연소: ${youngest}, 총 급여: ${totalSalary}`;
+```
+- 각 반복문을 함수로 추출한다. 그리고 `반복문을 파이프라인을 바꾸기`를 적용한다.
+- 최연소 계산 코드에는 알고리즘 교체하기( 합계계산 => `reduce`)을 적용한다.
+```js
+return `최연소: ${youngestAge()}, 총 급여: ${totalSalary()}`;
+
+function totalSalary() {
+  return people.reduce((total, p) => total + p.salary, 0);
+}
+
+function youngestAge() {
+  return Math.min(...people.map(p => p.age));
+}
+```
+
+<br>
+
 ### 8.8 반복문을 파이프라인으로 바꾸기
 ### 8.9 죽은 코드 제거하기
