@@ -2643,8 +2643,60 @@ function acquireData(input) {
 
 <br>
 
-## 9. 변수 쪼개기
+## 9. 데이터 조직화
 ### 9.1 변수 쪼개기
+```js
+// AS-IS
+let temp = 2 * (height + width);
+console.log(temp);
+temp = height * width;
+console.log(temp);
+
+// TO-BE
+const perimeter = 2 * (height + width);
+console.log(perimeter);
+const area = height * width;
+console.log(area);
+```
+### 9.1.1 설명
+- 변수에 값을 여러번 대입할 수 밖에 없는 것들이 있다.(`let`)
+    1. 루프 변수: let i 로 되는거
+    2. 수집(collecting) 변수: 메서드 동작 중간중간 값 저장(temp)
+    3. 이외에 긴 코드의 결과를 저장하는 경우들
+- 2, 3의 경우 둘 이상의 역할을 하는 변수라면 변수를 쪼개야 한다. 상수로 선언해서 재할당을 막는것이다.
+<br>
+
+### 9.1.2 절차
+1. 변수를 선언한 곳과 값을 처음 대입하는 곳에서 변수 이름을 바꾼다.
+2. 가능하면 불변으로 선언한다.
+3. 이 변수에 두번째로 값을 대입하는 곳 앞까지의 모든 참조를 새로운 변수명으로 바꾼다.
+4. 두 번째 대입 시 변수를 원래 이름으로 다시 선언한다.
+5. 테스트
+6. 반복한다.
+
+<br>
+
+### 9.1.3 예시
+- 너무 뻔한 리팩토링이라 간단한 예제만 다룬다. 입력 매개변수의 값을 수정하는 경우를 리팩토링한다.
+```js
+// AS-IS, js에서 매개변수는 값에 의한 호출(call-by-value)라서 사실 오류가 있진 않다.
+function discount(inputValue, quantity) {
+  if(inputValue > 50) inputValue = inputValue - 2;
+  if(quantity > 100) inputValue = inputValue - 1;
+  return inputValue;
+}
+
+// TO-BE, 하지만 input과 result는 명백히 다른 역할을 하기 때문에 변수분리한다. result = inputValue; 부분에서 입력 값에 기초해서 결과값을 누적해서 계산한다는 사실이 명확히 드러난다.
+function discount(inputValue, quantity) {
+  let result = inputValue;
+  if(inputValue > 50) result = inputValue - 2;
+  if(quantity > 100) result = inputValue - 1;
+  return result;
+}
+```
+
+<br>
+
 ### 9.2 필드 이름 바꾸기
 ### 9.3 파생 변수를 질의 함수로 바꾸기
 ### 9.4 참조를 값으로 바꾸기
