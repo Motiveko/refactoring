@@ -2698,6 +2698,85 @@ function discount(inputValue, quantity) {
 <br>
 
 ### 9.2 필드 이름 바꾸기
+```js
+// AS-IS
+class Organiztaion {
+  get name() {...}
+}
+
+// TO-BE
+class Organiztaion {
+  get title() {...}
+}
+```
+### 9.2.1 설명
+- 클래스의 필드나 게터세터 이름을 잘 지으면 가타부타 설명이나 flowchart 같은게 필요가 없다!
+
+<br>
+
+### 9.2.2 절차
+1. 레코드의 유효 범위가 제한적이면 필드에 접근하는 모든 코드를 수정한 후 테스트하면 끝이다.
+2. 레코드가 캡슐화가 안됐으면 캡슐화를 한다.
+3. 캡슐화된 객체의 private 필드명을 변경하고, 그에 맞게 내부 메서드(ex. 게터세터)를 수정한다.
+4. 테스트
+5. 생성자의 매개변수 중 필드와 이름이 겹치는게 있다면 `함수 선언 바꾸기`(6.5)로 변경한다.
+6. 접근자들의 디름도 바꿔준다.
+
+<br>
+
+### 9.2.3 예시
+```js
+const organization = {name: '애크미 구스베리', country: 'GB'};
+```
+- 위 객체에서 `name`을 `title`로 바꿔야 한다. 객체는 코드베이스 곳곳에서 사용되고, title을 바꾸는 곳도 있다!(최악이다. 타입이란게 없는듯?)
+- 우선 캡슐화한다.
+```js
+class Organization {
+  constructor(data) {
+    this._name = data.name;
+    this._country = data.country;
+  }
+  get name() { return this._name; }
+  set name(aString) { this._name = aString; }
+  get country() { return this._country; }
+  set country(aCountryCode) { this._country = aCountryCode; }
+}
+const organization = new Organization({name: '애크미 구스베리', country: 'GB'});
+```
+- `입력 데이터 구조`와 `내부 데이터 구조`가 독립되면서 따로 작업이 가능해졌다.(추상화)
+- 별도 필드를 정의하고 내부 메서드를 수정한다. 입력으로 name 외에 title도 받을수 있게도 해준다.
+```js
+class Organization {
+  constructor(data) {
+    this._title = data.title || data.name;
+    this._country = data.country;
+  }
+  get name() { return this._title; }
+  set name(aString) { this._title = aString; }
+  // ..
+}
+```
+- 이제 `Organization`을 쓰는쪽에 전부 찾아가서 새로운 이름인 `title`을 쓰도록 수정한다.
+```js
+const organization = new Organization({title: '애크미 구스베리', country: 'GB'});
+```
+- `name` 못받게 생성자를 바꾸고, name 접근자를 모두 title로 바꾼다.
+```js
+class Organization {
+  constructor(data) {
+    this._title = data.title;
+    this._country = data.country;
+  }
+  get title() { return this._title; }
+  set title(aString) { this._title = aString; }
+  // ..
+}
+```
+- 캡슐화를 하지 않았으면 이게 좀 어렵다.(name도, title도 쓰고 있으니까 스탭을 나누기가 애매해진다.(수정할때마다 계속 테스트는 깨질것))
+- 솔직히 엄청 복잡한게 아니라면 뭐 그냥 해도 될 것 같다.(클래스 만들수 없는 경우도 많다.)
+
+<br>
+
 ### 9.3 파생 변수를 질의 함수로 바꾸기
 ### 9.4 참조를 값으로 바꾸기
 ### 9.5 값을 참조로 바꾸기
