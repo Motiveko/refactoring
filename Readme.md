@@ -3053,3 +3053,22 @@ class Order {
 <br>
 
 ### 9.6 매직 리터럴 바꾸기
+```js
+// AS-IS
+function potentialEnergy(mass, height) {
+  return mass * 9.81 * height;
+}
+
+// TO-BE
+const STANDARD_GRAVITY = 9.81;
+function potentialEnergy(mass, height) {
+  return mass * STANDARD_GRAVITY * height;
+}
+```
+<br>
+
+- eslint의 `no magic number`룰이다.
+- 리터럴 값 보다는 값의 의미를 나타내는 이름으로 상수를 만들고 해당 상수를 쓰게 해야 한다.
+- 리터럴을 상수로 바꾸는 것 외에 함수로 만드는것이 나은 것들도 있다.(어차피 근데 함수 구현에는 상수를 쓰게 될 것이다.)
+  - `aValue === "M"`을 `aVlue === MALE_GENDER`로 바꾸는 것 보다 `isMale(aVlue)`라는 함수 호출로 바꾸는게 좋다.
+- `const ONE = 1`같은 상수는 사실 의미가 없다. 의미가 달라질 것도 아니고 값이 달라질 가능성도 없다.
