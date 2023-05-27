@@ -2778,6 +2778,113 @@ class Organization {
 <br>
 
 ### 9.3 파생 변수를 질의 함수로 바꾸기
+```js
+// AS-IS
+get discountedTotal(){ return this._discountedTotal; }
+set discount(aNumber) {
+  const old = this._discount;
+  this._discount = aNumber;
+  this._discountedTotal += old - aNumber; // 파생변수
+}
+
+// TO-BE
+get discountedTotal(){ return this._baseTotal - this._discount; }
+set discount(aNumber) { this._discount = aNumber; }
+```
+
+<br>
+
+### 9.3.1 설명
+- `가변 데이터`는 소프트웨어에 항상 문제를 일으킨다. 가변 데이터는 가급적 배제하고, 사용이 불가피하다면 유효 범위를 최대한 좁혀야 사이드 이펙트가 나지 않는다.
+- 이를 위해, ***값을 쉽게 계산할 수 있는 변수는 모두 제거한다.*** 계산 과정 코드를 보여주는게 데이터 의미를 더 잘 나타낼 때도 있고, 정합성이나 이런거에 문제도 덜생긴다.
+- 가변 데이터를 써도 되는 예외도 있다. 변형 연산(transformation operation) 에서다.
+    1. 데이터 구조를 감싸며, 그 데이터를 기초로 계선 결과를 속성으로 제공하는 객체
+    2. 데이터 구조를 받아 다른 데이터 구조로 변환해 반환하는 함수.(소스가 가변일 경우) 
+
+  
+
+<br>
+
+### 9.3.2 절차
+- 생략
+
+<br>
+
+### 9.3.3 예시
+1. 간단한 예시(소스가 하나(adjustments))
+```js
+get production() { return this._production; }
+applyAdjustment(anAdjustment) {
+  this._adjustments.push(anAdjustment);
+  this._production += anAdjustment.amount;
+}
+```
+- 이 경우는 `데이터 중복`이다. adjustment를 적용하는 과정에서 직접 관련없는 누적 값 production도 갱신하는 경우다.
+- 간단하게 할 수 있지만 우선 신중하게 `assertion`을 추가한다.
+```js
+get production() { 
+  assert(this._production === this.calcuatedProduction);
+  return this._production; 
+}
+get calculatedProduction() {
+  return this._adjustments.reduce((sum, a) => sum + a.amount, 0);
+}
+```
+- 테스트 해보고 assertion이 실패하지 않으면 아래와 같이 정리될 수 있다
+```js
+get production() { return this._adjustments.reduce((sum, a) => sum + a.amount, 0); }
+applyAdjustment(anAdjustment) {
+  this._adjustments.push(anAdjustment);
+}
+```
+
+2. 조금 복잡한 예시(소스가 둘 이상)
+```js
+class ProductionPlan {
+  constructor(production) {
+    this._production = production;
+    this._adjustments = [];
+  }
+  get production() { return this._production; }
+  applyAdjustment(anAdjustment) {
+    this._adjustments.push(anAdjustment);
+    this._production += anAdjustment.amount;
+  }
+}
+```
+- production 계산에 생성자로 받은 production 값에 adjustments를 계산하게 되는 방식이다.(소스가 `production`, `adjustments`)
+- 이 경우 이전과 동일한 `assertion` 적용할 경우, `production = 0`이 아닌 경우라면 다 실패했을 것이다.(잘 테스트 안하면 버그가 있을수도 있는것)
+- `변수 쪼개기`(9.1)를 통해서 처리한다. assertion도 추가한다.
+```js
+class ProductionPlan {
+  constructor(production) {
+    // _production을 두개로 쪼갠다.
+    this._initialProduction = production;
+    this._productionAccumulator = 0;
+    this._adjustments = [];
+  }
+  get production() { 
+    assert(this.__productionAccumulator === this.calculatedProductionAccumulator);
+    return this._initialProduction + this._productionAccumulator; 
+  }
+  applyAdjustment(anAdjustment) {
+    this._adjustments.push(anAdjustment);
+    this._productionAccumulator += anAdjustment.amount;
+  }
+  get calculatedProductionAccumulator() {
+    return this._adjustments.reduce((sum, a) => sum + a.amount, 0);
+  }
+}
+```
+- `assertion` 통과되면 `calculatedProductionAccumulator`을 인라인하고 필요없는 변수는 제거하면 된다.
+```js
+get production() {
+  return this._initialProduction + this.calculatedProductionAccumulator; 
+}
+```
+
+<br>
+
 ### 9.4 참조를 값으로 바꾸기
 ### 9.5 값을 참조로 바꾸기
 ### 9.6 매직 리터럴 바꾸기
