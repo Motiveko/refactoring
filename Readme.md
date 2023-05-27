@@ -48,7 +48,7 @@
   - ### [9.2 필드 이름 바꾸기](#92-필드-이름-바꾸기-1)
   - ### [9.3 파생 변수를 질의 함수로 바꾸기](#93-파생-변수를-질의-함수로-바꾸기-1)
   - ### [9.4 참조를 값으로 바꾸기](#94-참조를-값으로-바꾸기-1)
-  - ### [9.5 값을 참조로 바꾸기](#95-값을-참조로-바꾸기-1)
+  - ### 🔥[9.5 값을 참조로 바꾸기](#95-값을-참조로-바꾸기-1)
   - ### [9.6 매직 리터럴 바꾸기](#96-매직-리터럴-바꾸기-1)
 
 <br>
@@ -2971,4 +2971,85 @@ class Person {
 
 
 ### 9.5 값을 참조로 바꾸기
+```js
+// AS-IS
+let customer = new Customer(customerData);
+
+// TO-BE
+let customer = customerRepository.get(customerData.id);
+```
+
+<br>
+
+### 9.5.1 설명
+- 하나의 데이터 구조 안에 논리적으로 같은 데이터 구조를 참조하는 레코드가 여러개 있는 경우가 있다.( 예를 들어 주문 목록(list)에 같은 고객이 요청한 주문이 섞여 있는 경우)
+- 이럴 때 고객 객체를 `참조`/`값` 으로 다룰 수 있는데, 고객 객체가 갱신되지 않는 경우라면 어떤 방식이든 문제가 안된다. (참조의 경우 고객 객체를 각 레코드에 물리적으로 복사를 해서 쓰게 될거다)
+- 근데 데이터를 갱신해야 할 경우, ***`참조`로 다루면 모든 복제본 참조에 가서 데이터를 빠짐없이 갱신해야 하는 문제가 생긴다.*** 이건 무척 어렵기 때문에 `값`으로 다루는게 편하다.
+- `값`으로 다루는 경우 엔티티 하나당 객체도 하나만 존재하는데, 보통 이런 객체를 한데 모아서 클라이언트들의 접근을 관리해주는 일종의 저장소가 필요해진다. (`Repository` 레이어)
+
+<br>
+
+### 9.5.2 절차
+1. 같은 부류에 속하는 객체들을 보관할 저장소를 만든다.
+2. 생성자에서 이 부류의 객체들 중 특정 객체를 정확히 찾아내는 방법이 있는지 확인한다.
+3. 호스트 객체의 생성자들을 수정하여 객체를 이 저장소에서 찾도록 한다. 
+4. 테스트
+
+
+<br>
+
+### 9.5.3 예시
+- 주문(`Order`)클래스가 있다. 객체 생성시 입력 데이터의 고객 ID를 이용해 고객(`Customer`)객체를 만든다.
+```js
+class Order {
+  constructor(data) {
+    this._customer = new Customer(data.customer);
+    //...
+  }
+
+  get customer() { return this._customer; }
+}
+
+class Customer {
+  constructor(id) {
+    this._id = id;
+  }
+  get id() { return this._id; }
+}
+```
+- `Customer`객체가 매 `Order` 생성시에 독립적으로 생성되는데, 고객을 수정해야 하는 경우, 어떻게 할지 막막해진다. `Order`외에도 `Customer`를 참조하는 곳이 있을수도 있다.
+- `Repository` 레이어를 만든다.  (사실 보통은 db를 참조할 것이다.) 예제에서는 id 기반으로 등록/조회만 가능하면 된다.(보통은 CRUD일 것)
+```js
+let _repositoryData;
+
+export function initialize() {
+  _repositoryData = {};
+  _repositoryData.customers = new Map();
+}
+
+export function registerCustomer(id) {
+  if(!_repositoryData.customers.has(id)) {
+    _repositoryData.customers.set(id, new Customer(id));
+  return findCustomer(id);
+  }
+}
+
+export function findCustomer(id) {
+  return _repositoryData.customers.get(id);
+}
+```
+- `Order`의 생성자는 아래와 같이 바꾼다.
+```js
+class Order {
+  constructor() {
+    this._number = data.number;
+    this._customer = registerCustoer(data.customer);
+    // ...
+  }
+}
+```
+- 이렇게 하면 ***`Order`의 생성자가 전역 저장소와 결합된다는 문제가 있다.*** 전역 객체는 신중히 다뤄야한다. 적절한 사용은 이로울 수 있지만 과용하면 독이된다.(애초에 레포지토리가 js 모듈 형태로 만들어져서 어쩔수가 없긴 하다. class로 만들었어야?). 불편하면 생성자 매개변수로 `repository`를 전달하자.(Spring Bean 처럼)
+
+<br>
+
 ### 9.6 매직 리터럴 바꾸기
