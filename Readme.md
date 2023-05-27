@@ -2886,5 +2886,89 @@ get production() {
 <br>
 
 ### 9.4 참조를 값으로 바꾸기
+```js
+// AS-IS
+class Product {
+  applyDiscount(arg) { this._price.amount -= arg; }
+}
+
+// TO-BE
+class Product {
+  applyDiscount(arg) {
+    this._price = new Money(this._price.amount - arg, this._price.currency);
+  }
+}
+```
+<br>
+
+### 9.4.1 설명
+- 중첩 객체를 취급할 때 `참조` or `값`으로 취급할 수 있다. 참조로 취급하면 중첩 객체 속성을 직접 조작할 것이고 값으로 취급하면 불변으로 취급해 객체를 통째로 바꿀것이다.
+- 값 객체는 나 몰래 어디선가 객체 속성이 바뀔 것을 염려하지 않아도 되어서 안전한 편이다.
+- 근데 이런 특성 때문에, 값 객체가 갱신될 때 이를 참조하는 다른 곳에서도 바뀐 객체란 걸 알려줘야 하는 문제도 있다.( ex 옵저버 패턴 )
+
+<br>
+
+### 9.4.2 절차
+1. 후보 클래스가 불변인지, 혹은 불변이 될 수 있는지 확인한다.
+2. 각각의 `세터를 하나씩 제거`(11.7)한다.
+3. 이 값 객체의 필드들을 사용하는 동치성(equality) 비교 메서드를 만든다. (js에서는 직접 구현 필요함ㅠ)
+
+<br>
+
+### 9.4.3 예시
+- 아래는 `Person`객체 내에서 `TelephoneNumber`객체를 중첩하는 경우다.
+```js
+class Person {
+  constructor() {
+    this._telephoneNumber = new TelephoneNumber();
+  }
+  get officeAreaCode() { return this._telephoneNumber.areaCode; }
+  set officeAreaCode(arg) { this._telephoneNumber.areaCode = arg; }
+  get officeNumber() { return this._telephoneNumber.number; }
+  set officeNumber(arg) { this._telephoneNumber.number = arg; }
+}
+```
+- `Person`의 setter가 `TelephoneNumber`의 setter를 이용해 속성을 직접 조작하고 있다(참조로 사용)
+- 우선 `TelephoneNumber`를 불변으로 만들어야한다. ***생성자에서 속성을 무조건 초기화 하도록 하고, 세터는 제거하면 된다.*** 
+  - ***`값` 이기 때문에 equals를 통해서 동치성 비교를 할 수 있어야 한다.***(이걸 기반으로 뭐 옵저버 패턴 같은거 쓸 수가 있는거다. 사실 setter 없으면 비교가 틀릴 일은 없긴 하지만 원칙은 이거 해줘야하는거다.)
+```js
+// 불변으로..
+class TelephoneNumber {
+  constructor(areaCode, number) {
+    this._areaCode = areaCode;
+    this._number = number;
+  }
+  get areaCode() { return this._areaCode; }
+  get number() { return this._number; }
+
+  equals(other) {
+    if(!(other instanceof TelephoneNumber)) return false;
+    return this.areaCode === other.areaCode && this.number === other.number;
+  }
+}
+
+// equals의 테스트코드, 이런게 없으면 `TelephoneNumber`객체 변경시 equals가 깨지게 되는데, 깨진걸 인지하기 어렵다.
+it('telephoe equals', function() {
+  assert(new TelephoneNumber('312', '123-456').equals(new TelephoneNumber('312', '123-456')));
+})
+
+// 사용 측
+class Person {
+  // ...
+
+  set officeArea(arg) { 
+    // 참조를 통한 중첩 객체의 속성 갱신하는게 아닌 중첩 객체를 통째로 갱신한다.
+    this._telephoneNumber = new TelephoneNumber(arg, this.offieNumber);
+  }
+  set officeNumber(arg) { 
+    this._telephoneNumber = new TelephoneNumber(this.officeAreaCode, arg);
+  }
+}
+```
+
+
+<br>
+
+
 ### 9.5 값을 참조로 바꾸기
 ### 9.6 매직 리터럴 바꾸기
