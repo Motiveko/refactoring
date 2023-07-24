@@ -3072,3 +3072,213 @@ function potentialEnergy(mass, height) {
 - 리터럴을 상수로 바꾸는 것 외에 함수로 만드는것이 나은 것들도 있다.(어차피 근데 함수 구현에는 상수를 쓰게 될 것이다.)
   - `aValue === "M"`을 `aVlue === MALE_GENDER`로 바꾸는 것 보다 `isMale(aVlue)`라는 함수 호출로 바꾸는게 좋다.
 - `const ONE = 1`같은 상수는 사실 의미가 없다. 의미가 달라질 것도 아니고 값이 달라질 가능성도 없다.
+
+<br><br>
+
+## 10. 조건부 로직 간소화
+
+### 10.1 조건문 분해하기
+```js
+// AS-IS
+if(!aDate.isBefore(plan.summerStart) && !aDate.isAfter(plan.summerEnd)) 
+  charge = quantity * plan.summerRate;
+else
+  charge = quantity * plan.regularRage + plan.regularServiceCharge;
+
+// TO-BE
+if(summer()) 
+  charge = quantity * plan.summerRate;
+else
+  charge = quantity * plan.regularRage + plan.regularServiceCharge;
+```
+
+<br>
+
+### 10.1.1 설명
+- 거대 코드 블럭이 주어지면, 부위별로 분해하고, 분해된 각 덩어리를 `의도를 살린 이름의 함수 호출`로 바꿔준다. => 조건이 무엇인지 강조하고, 무엇을 분기했는지 딱 보면알게 된다.
+
+<br>
+
+### 10.1.2 절차
+- ***조건식과 그 조건식에 딸린 조건절 각각을 함수로 추출한다.***
+
+<br>
+
+### 10.1.3 예시
+- 생략
+
+
+### 10.2 중복 조건식 통합하기
+```js
+// AS-IS
+if(anEmployee.seniority < 2) return 0;
+if(anEmployee.monthsDisabled < 12) return 0;
+if(anEmployee.isPartTime < 0) return 0;
+
+// TO-BE
+if(isNotEligibleForDisability()) return 0;
+
+function isNotEligibleForDisability() {
+  return ((anEmployee.seniority < 2) 
+        || (anEmployee.monthsDisabled < 12)
+        || (anEmployee.isPartTime < 0));
+}
+```
+
+<br>
+
+### 10.2.1 설명
+- 조건은 다르지만 그 결과로 수행해야 하는 동작이 똑같은 경우, 조건 검사를 하나로 통합하는 게 낫다.(무엇을 하는지 명확하게 딱 바로 알 수 있다.)
+  - 물론 명확하게 분리해서 조건검사해야 하는 케이스도 존재한다.
+
+<br>
+
+### 10.2.2 절차
+- 조건에 부수효과가 없는지 확인한다. 있다면 `질의함수와 변경 함수 분리하기`(11.1) 적용한다.
+- 조건문 두 개를 논리 연산자로 결합하고 테스트한다.
+- 조건이 하나가 될 때 까지 계속한다.
+- 하나로 합쳐진 조건식을 함수로 추출할 지 고려해 본다.
+
+<br>
+
+### 10.2.3 예시
+- 나열된 조건문은 OR로 통합, 중첩 조건문은 AND로 통합
+- 상세 예시 생략
+
+<br>
+
+### 10.3 중첩 조건문을 보호 구문으로 바꾸기
+```js
+// AS-IS
+function getPayAmount() {
+  let result;
+  if(isDead)
+    result = {amount: 0, reasonCode: "SEP"};
+  else {
+    if(isSeperated) {
+      result = {amount: 0, reasonCode: "RET"};
+    } else {
+      // 급여 계산 로직
+      loren.ipsum(dolor.sitAmet) ;
+      // ...
+      result = getSumResult(dolor);
+    }
+  }
+  return result;
+}
+
+// TO-BE
+function getPayAmount() {
+  if(isDead) return {amount: 0, reasonCode: "SEP"};
+  if(isSeperated) return {amount: 0, reasonCode: "RET"};
+  
+  // 급여 계산 로직
+  loren.ipsum(dolor.sitAmet) ;
+  // ...
+  return getSumResult(dolor);
+}
+```
+
+<br>
+
+### 10.3.1 설명
+- 조건문은 두 가지 형태다. 두개는 의도하는 바가 다르므로 그게 코드에서 드러나야 좋다.
+  1. 참/거짓 모두 정상 동작
+  2. 한 쪽만 정상 동작
+- 보통 1.의 경우에는 `if - else`를 쓰고, 2. 의 경우 if문으로 비정상 조건을 검사해서 함수에서 빠져나오게 한다. else는 없는 것이다. 2.에서 비정상 조건 검사해서 빠져나오는걸 `보호 구문(guard clause)`라고 한다.
+- 위의 예시에서 살펴보면, `isDead`, `isSeperated`는 비정상인 경우인 것이다. 정상 동작은 중첩된 else문 하나 뿐이다! 따라서 ***비정상 케이스를 우선 if문 통해서 검사해서 빠르게 함수를 탈출시키고 정상동작은 그 후에 수행되도록 하는 것이다.***
+
+
+
+<br>
+
+### 10.3.2 절차
+1. 교체할 조건 중 가장 바깥 것 부터 보호 구문으로 만든다. 
+2. 테스트
+3. 1~2 반복한다.
+4. 같은 결과를 반환하는 보호 구문은 `조건식 통합`하는걸 고려한다.
+
+<br>
+
+### 10.3.3 예시
+- 조건식을 반대로 만들어 적용하는 케이스도 있다.
+```js
+function adjustedCapital(anInstrument) {
+  let result = 0;
+  if(anInstrument.capital > 0) {
+    if(anInstrument.interestRate > 0 && anInstrument.duration > 0) {
+      result = (anInstrument.income / anInstrument.duration) * anInstrument.adjustmentFactor;
+    }
+  }
+  return result;
+}
+```
+- result 계산은 중첩 조건문 내에서만 계산되고(모두 true일 때) 하나라도 false면 보호 구문으로 함수를 빠져나오게 해야 한다. **기존에 작성된 조건과 반대되는 조건**을 만들어야 하는 것이다.
+```js
+function adjustedCapital(anInstrument) {
+  if(anInstrument.capital <= 0 || anInstrument.interestRate <= 0 || anInstrument.duration <= 0) return 0;
+  return (anInstrument.income / anInstrument.duration) * anInstrument.adjustmentFactor;
+}
+```
+- 요런 조건문 반대로 하는 케이스는 실수하기 딱 좋은 것 같다. 테스트 코드 필수!
+
+<br>
+
+### 10.4 조건부 로직을 다형성으로 바꾸기
+```js
+// AS-IS
+switch(bird.type) {
+  case '유럽 제비':
+    return '보통이다';
+  case '아프리카 제비':
+    return (bird.numberOfCounts > 2) ? '지쳤다' : '보통이다';
+  case '노르웨이 파랑 앵무':
+    return bird.voltage > 100 ? '그을렸다' : '예쁘다';
+  default:
+    return '알 수 없다';
+}
+
+// TO-BE
+class EuropeanSwallow {
+  get plumage() {
+    return '보통이다';
+  }
+}
+
+class AfricanSwallow {
+  get plumage() {
+    return this.numberOfCounts > 2 ? '지쳤다' : '보통이다'
+  }
+}
+// ...
+```
+### 10.4.1 설명
+- 복잡한 조건부 로직은 항상 너무 난해하다. 종종 클래스와 다형성으로 해결 가능한 부분이 있다.
+  - `switch`문이 포함된 함수가 여러개 보이는 경우 => `case`별로 하나씩 클래스를 만들어서 공통 switch 로직의 중복을 없앨 수 있다.
+  - 기본동작을 위한 `case`문과 그 변형 동작으로 구성된 로직 => `슈퍼클래스`를 만들고, 기본 동작은 `슈퍼클래스` 메서드에 구현하고, 변형 동작은 `서브클래스`에서 구현한다.
+
+- 다형성은 좋긴 하지만 모든 조건부 로직을 이렇게 처리할 필요는 없다. 
+
+<br>
+
+### 10.4.2 절차
+1. 다형적 동작을 표현할 클래스를 만들어 준다. 이왕이면 적합한 인스턴스를 알아서 만들어서 반환하는 ***팩터리 함수***도 같이 만든다.
+2. 호출하는 코드에서 팩터리 함수 사용하게 한다.
+3.  조건부 로직 함수를 슈퍼클래스로 옮긴다.
+4. 서브클래스 중 하나를 선택하여, 조건부 로직 메서드를 오버라이드 한다. 
+5. 각 조건절에 대한 서브클래스에 4.를 수행한다.
+6. 슈퍼 클래스에는 기본 동작 부분만 남긴다. 슈퍼클래스가 추상 클래스면 메서드를 추상으로 선언하거나 서브클래스에서 구현하도록 에러를 던진다.
+
+
+<br>
+
+### 10.4.3 예시
+- TODO : 여기서부터
+
+
+<br>
+
+
+### 10.5 특이 케이스 추가하기
+
+### 10.6 어서션 추가하기
