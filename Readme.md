@@ -1801,7 +1801,7 @@ class Shipment {
 
 ```
 
-### 7.7 위임 숨기기
+### 7.7 🔥위임 숨기기🔥
 ### 7.7.1 🔥설명🔥
 - 모듈화 설계의 핵심은 캡슐화다. 캡슐화의 기본은 필드를 숨기는 것인데, 이것의 의미는 단순히 필드를 숨기는게 아니라 `객체`의 필드가 가리키는 객체(`위임 객체`)를 숨겨, `객체`를 사용하는 쪽(클라)에서 `위임 객체`의 인터페이스가 변해도 코드를 수정할 필요가 없어지게 해준다.(클라는 위임 객체를 몰라도 된다. 위임 객체에 의존하는 객체만 바꿔주면 된다.)
 
@@ -3224,7 +3224,7 @@ function adjustedCapital(anInstrument) {
 
 <br>
 
-### 10.4 조건부 로직을 다형성으로 바꾸기
+### 10.4 🔥조건부 로직을 다형성으로 바꾸기🔥
 ```js
 // AS-IS
 switch(bird.type) {
@@ -3273,8 +3273,236 @@ class AfricanSwallow {
 <br>
 
 ### 10.4.3 예시
-- TODO : 여기서부터
+- 신용 평가 기관에서 선박의 항해 투자 등급을 계산하는 코드.
+- 위험요소(자연조건, 선장 항해 이력)과 잠재수익을 기초로 A, B로 판단한다.
+```js
+function rating(voyage, history) { // 투자등급
+  const vpf = voyageProfitFactor(voyage, history);
+  const vr = voyageRisk(voyage);
+  const chr = captainHistoryRisk(voyage, history);
 
+  if(vpf * 3 > (vr + chr * 2)) return "A";
+  else return "B";
+}
+
+function voyageRisk(voyage) { // 항해 경로 위험요소
+  let result = 1;
+  if(voyage.length > 4) result += 2;
+  if(voyage.length > 8) result += voyage.length - 8;
+  if(['중국', '동인도'].includes(voyage.zone)) result += 4;
+  return Math.max(result, 0);
+}
+
+function captainHistoryRisk(voyage, history) { // 선장의 항해 이력 위험요소
+  let result = 1;
+  if(history.length < 5) result += 4;
+  result += history.filter(v => v.profit < 0).length;
+  if(voyage.zone === '중국' && hasChina(history)) result -= 2; // 특수케이스
+  return Math.max(result, 0);
+}
+
+function hasChina(history) { // 중국을 경유하는가?
+  return history.some(v => "중국" === v.zone);
+}
+
+function voyageProfitFactor(voyage, history) { // 수익 요인
+  let result = 2;
+  if(voyage.zone === '중국') result += 1;
+  if(voyage.zone === '동인도') result += 1;
+  if(voyage.zone === '중국' && hasChina(history)) { // 특수케이스
+    result += 3;
+    if(history.length > 10) result += 1;
+    if(voyage.length > 12) result += 1;
+    if(voyage.length > 18) result -= 1;
+  } else {
+    if(history.length > 8) result += 1;
+    if(voyage.length > 14) result -= 1;
+  }
+  return result;
+}
+
+// 호출 측
+const voyage = {zone: '서인도', length: 10};
+const history = [
+  {zone: '동인도', profit: 5},
+  {zone: '서인도', profit: 15},
+  {zone: '중국', profit: -2},
+  {zone: '서아프리카', profit: 7},
+]
+const myRating = rating(voyage, history);
+```
+- 복잡하다. 여기서 `기본로직`과 `특수한 상황의 로직`을 분리해야 한다. 특수한 상황 로직은 아래다.
+  - 중국까지 항해해본 선장이 중국을 경유해 항해할 때 다루는 조건부 로직들.
+- **특수한 상황을 검사하는 로직이 반복되어 기본 동작을 이해하는데 방해**가 되고 있다. 이를 분리하기 위해 다형성을 쓴다.
+- 먼저 `Rating`이라는 클래스를 만들어 기본 동작을 모두 담는다.
+```js
+function rating(voyage, history) { // 투자등급
+  return new Rating(voyage, history).value;
+}
+
+class Rating {
+  constructor(voyage, history) {
+    this.voyage = voyage;
+    this.history = history;
+  }
+
+  get value() {
+    const vpf = this.voyageProfitFactor;
+    const vr = this.voyageRisk;
+    const chr = this.captainHistoryRisk;
+  
+    if(vpf * 3 > (vr + chr * 2)) return "A";
+    else return "B";
+  }
+
+  get voyageRisk() { // 항해 경로 위험요소
+    let result = 1;
+    if(this.voyage.length > 4) result += 2;
+    if(this.voyage.length > 8) result += this.voyage.length - 8;
+    if(['중국', '동인도'].includes(this.voyage.zone)) result += 4;
+    return Math.max(result, 0);
+  }
+
+  get captainHistoryRisk() { // 선장의 항해 이력 위험요소
+    let result = 1;
+    if(this.history.length < 5) result += 4;
+    result += this.history.filter(v => v.profit < 0).length;
+    if(this.voyage.zone === '중국' && this.hasChinaHistory(this.history)) result -= 2;
+    return Math.max(result, 0);
+  }
+
+  get voyageProfitFactor() { // 수익 요인
+    let result = 2;
+    if(this.voyage.zone === '중국') result += 1;
+    if(this.voyage.zone === '동인도') result += 1;
+    if(this.voyage.zone === '중국' && this.hasChinaHistory(this.history)) {
+      result += 3;
+      if(this.history.length > 10) result += 1;
+      if(this.voyage.length > 12) result += 1;
+      if(this.voyage.length > 18) result -= 1;
+    } else {
+      if(this.history.length > 8) result += 1;
+      if(this.voyage.length > 14) result -= 1;
+    }
+    return result;
+  }
+
+  get hasChinaHistory() {// 중국을 경유하는가?
+    return this.history.some(v => "중국" === v.zone);
+  }
+}
+```
+- 변형동작을 담당할 서브클래스를 만든다. 서브클래스는 `중국까지 항해해본 선장이 중국을 경유해 항해`하는 케이스다. 이를 팩토리 함수에서 구분하도록 한다.
+
+```js
+class ExperiencedChinaRating extends Rating {}
+
+function createRating(voyage, history) {
+  if(voyage.zone === '중국' && history.some(v => '중국' === v.zone)) {
+    return new ExperiencedChinaRating(voyage, history);
+  } else {
+    return new Rating(voyage, history);
+  }
+}
+
+function rating(voyage, history) { // 투자등급
+  return createRating(voyage, history).value;
+}
+```
+- 특수한 상황의 동작을 서브클래스로 옮긴다.(`voyageRisk`, `voyageProfitFactor`)
+
+```js
+class Rating {
+
+  get voyageRisk() { // 항해 경로 위험요소
+    let result = 1;
+    if(this.voyage.length > 4) result += 2;
+    if(this.voyage.length > 8) result += this.voyage.length - 8;
+    // 🙅🏻‍♀️제거🙅🏻‍♀️ if(['중국', '동인도'].includes(this.voyage.zone)) result += 4;
+    return Math.max(result, 0);
+  }
+
+  get voyageProfitFactor() { // 수익 요인
+    let result = 2;
+    if(this.voyage.zone === '중국') result += 1;
+    if(this.voyage.zone === '동인도') result += 1;
+    // 기본/특수 동작이 if/else로 각각 실행되는 경우 => 아예 해당 코드 블록을 함수로 추출
+    result = this.voyageAndHistoryLengthFactor;
+    return result;
+  }
+
+  // 기본동작
+  get voyageAndHistoryLengthFactor() {
+    let result = 0
+    if (this.history.length > 8) result += 1;
+    if (this.voyage.length > 14) result -= 1;
+    return result;
+  }
+}
+
+class ExperiencedChinaRating extends Rating {
+  get captainHistoryRisk() {
+    const result = super.captainHistoryRisk - 2;
+    return Math.max(result, 0);
+  }
+
+  // 특수동작 overriding
+  get voyageAndHistoryLengthFactor() {
+    let result = 0;
+    result += 3;
+    if (this.history.length > 10) result += 1;
+    if (this.voyage.length > 12) result += 1;
+    if (this.voyage.length > 18) result -= 1;
+    return result;
+  }
+}
+```
+- `voyageProfitFactor`가 좀 복잡한데, if/else 문으로 기본/특수 모두 각각의 동작을 하기 때문이다. 이 경우 해당 코드 블록을 함수(`voyageAndHistoryLengthFactor`)로 추출한 후 특수 동작부(if문의 true)를 `ExperiencedChinaRating`에서 오버라이딩 하도록 했다.
+
+<br>
+
+-  `voyageAndHistoryLengthFactor` 에서 And가 들어가는 부분에서 악취가 난다고 한다. 두가지 독립된 일을 수행하기 때문. 하나의 일만 하도록 분리해줘야 한다.
+
+```js
+class Rating {
+  get voyageProfitFactor() { // 수익 요인
+    let result = 2;
+    if(this.voyage.zone === '중국') result += 1;
+    if(this.voyage.zone === '동인도') result += 1;
+    result += this.voyageLengthFactor;
+    result += this.historyLengthFactor; // 문장을 호출한 곳으로 옮기기
+    return result;
+  }
+
+  get voyageLengthFactor() {
+    let result = 0
+    if (this.history.length > 14) result -= 1;
+    return result;
+  }
+
+  get historyLengthFactor() {
+    return (this.voyage.length > 8) ? 1 : 0;
+  }
+}
+
+class ExperiencedChinaRating extends Rating {
+  get voyageProfitFactor() {
+    return super.voyageProfitFactor + 3;
+  }
+  get voyageLengthFactor() {
+    let result = 0;
+    // result += 3;
+    if (this.voyage.length > 12) result += 1;
+    if (this.voyage.length > 18) result -= 1;
+    return result;
+  }
+
+  get historyLengthFactor() {
+    return (this.history.length > 10) ? 1 : 0;
+  }
+}
+```
+- 꽤 복잡한 과정이었다. 근데 개발하다 보면 이런식의 설계가 필요한 경우가 매우 많다는걸 체감할 수 있다. 잘 이해하도록 하자.
 
 <br>
 
