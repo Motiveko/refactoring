@@ -3508,5 +3508,213 @@ class ExperiencedChinaRating extends Rating {
 
 
 ### 10.5 특이 케이스 추가하기
+```js
+if(aCustomer === '미확인 고객') customerName = '거주자';
+
+class UnknownCustomer {
+  get name() { return '거주자'; }
+}
+```
+
+<br>
+
+### 10.5.1 설명
+- 위에 코드에서 처럼 데이터의 특정 값을 확인한 후 어떤 동작을 수행하는 코드가 여기저기 반복되고 있다면 이를 한 곳으로 모으는게 좋다. 이런걸 특이 케이스 패턴(Special Case Pattern)이라고 한다.
+- 대표적인 특이 케이스는 널 처리다.
+
+<br>
+
+### 10.5.2 절차
+1. 컨테이너(class)에 특이 케이스인지를 검사하는 속성을 추가한다. (`boolean`)
+2. 특이 케이스 객체를 만든다. 이 객체는 특이 케이스 여부를 검사하는 속성만 포함하며, 특이케이스 클래스의 반환값은 `true`일 것이다.
+3. 클라이언트에서 특이 케이스인지를 검사하는 모든 코드를 `함수로 추출(6.1)`한다.
+4. 코드에 새로운 특이 케이스 대상을 추가한다. 변환함수를 써도 된다.(transform)
+  - 이거는 `Customer`만 반환하던 곳에서 새로 만든 특이케이스 클래스(`UnknownCustomer`)도 반환하게 하라는 것.( 다형성 )
+5. 특이 케이스를 검사하는 함수 본문을 특이 케이스 객체의 속성을 쓰도록 수정한다.
+6. 테스트
+7. `여러 함수를 클래스로 묶기(6.9)`나 `여러 함수를 변환 함수로 묶기(6.10)`를 적용해 특이 케이스를 처리하는 공통 로직을 새로운 요소로 옮긴다. (특이 케이스의 메서드, getter..)
+  - 여기서 객체에서 `읽기`만 하는 거라면 굳이 클래스 안만들고, 4의 변환함수에서 필드만 바꿔준 리터럴 객체를 써도 된다.
+8. 반복반복
+
+<br>
+
+### 10.5.3 예시
+1. 전력회사는 전력이 필요한 현장(`Site`)인프라를 설치해 서비스를 제공한다. Stie는 고객(`Customer`) 클래스에 의존한다.
+```js
+class Site {
+  get customer() { return this._customer; }
+}
+
+class Customer {
+  get name() {...} // 이름
+  get billingPlan() {...} // 요금제(읽기)
+  set billingPlan(arg) {...} // 요금제(쓰기)
+  get paymentHistory() {...} // 납부 이력
+}
+
+
+// 클라이언트 1
+const aCustomer = site.customer;
+let customerName;
+if(aCustomer === '미확인 고객') customerName = '거주자';
+else customerName = aCustomer.name;
+
+// 클라이언트 2
+const plan = (aCustomer === '미확인 고객') ? registry.billingPlans.basic : aCustomer.billingPlan;
+
+// 클라이언트 3 (쓰기동작)
+if(aCustomer !== '미확인 고객') aCustomer.billingPlan = newPlan; 
+
+
+// 클라이언트 4
+const weeksDelinquent = (aCustomer === '미확인 고객') ? 0 : aCustomer.paymentHistory.weeksDeliquentInLastYear;
+```
+- 1, 2 : 특이케이스 클래스와 특이케이스 여부 필드를 만든다
+```js
+class Customer {
+  get isUnknown { return false; }
+}
+class UnknownCustomer {
+  get isUnknown { return true; }
+}
+```
+- 3 : 클라이언트에서 특이케이스 여부를 검사하는 코드를 함수로 추출한다. 이게 필요한 이유는 Customer 타입이  `Customer` 혹은  `'미확인 고객'`으로 아예 다르기 때문이다. 안전하게 가야한다.
+```js
+function isUnknown(arg) {
+  if(!(arg instanceof Customer) || (arg === '미확인 고객')) {
+    throw new Error(`잘못된 값과 비교: <${arg}>`);
+  }
+  return arg === '미확인 고객';
+}
+
+// 클라이언트 1
+const aCustomer = site.customer;
+let customerName;
+if(isUnknwon(aCustomer)) customerName = '거주자';
+else customerName = aCustomer.name;
+
+
+// 클라 2,3,4 도..
+```
+- 4: 특이케이슬 일 때 Site에서 `UnknownCustomer` 객체 반환하도록 한다.
+```js
+class {
+  get customer() {
+    if(this._customer === '미확인 고객') ? new UnknownCutomer() : this._customer;
+  }
+}
+
+function isUnknown(arg) {
+  if(!(arg instanceof Customer) || (arg instanceof UnknownCustomer)) {
+    throw new Error(`잘못된 값과 비교: <${arg}>`);
+  }
+  return arg.isUnknown;
+}
+```
+- 테스트하고, 7: 특이 케이스를 처리하는 공통 로직을 옮긴다.
+```js
+
+class UnknownCustomer {
+  get name() { return '거주자'; } // 클라이언트 1
+  get billingPlan() { return registry.billingPlans.basic; } // 클라이언트2
+  set billingPlan() { /* 아무것도 안한다. */} // 클라이언트3, 쓰기 => 리터럴 객체가 아닌 클래스로 처리해야하는 이유
+
+  get paymenthistory() { return new NullPaymentHistory(); }
+
+}
+// 기존 0 으로 처리하던걸 객체화(이것도 다형성..)
+class NullPaymentHistory {
+  get weeksDelinquentInLastYear() { return 0; }
+}
+
+
+// 클라이언트 1
+const aCustomer = site.customer;
+const customerName = aCustomer.name; // 하나 더 나아가면 인라인 처리가 가능해진다.
+
+
+// 클라이언트 2
+const plan = aCustomer.billingPlan;
+
+// 클라이언트 3 (쓰기동작)
+if(aCustomer.isUnknown) aCustomer.billingPlan = newPlan; 
+
+
+// 클라이언트 4 
+const weeksDelinquent = aCustomer.paymentHistory.weeksDeliquentInLastYear;
+```
+- ***클라이언트 3은 쓰기 동작***이다. 미확인 고객은 쓰기를 하지 않기 때문에(물론 다른 클라이언트에서 있다면 처리해줘야 한다.) setter를 비운다.
+- 클라이언트 4는 반환 타입이 `0` or `PaymentHistory.weeksDeliquentInLastYear`. 처리가 어려운데, 0을 래핑하는 `NullPaymentHistory` 객체를 만들어서 처리하였다. (Customer, UnknownCustomer와 마찬가지로 다형성으로 처리한 것)
+
+- 종종 동작이 다른 튀는 클라이언트가 있을 수 있다.
+```js
+// 튀는 클라이언트
+const name = !isUnknwon(aCustomer) ? aCustomer.name : '미확인 거주자';
+```
+- 이런거는 어쩔수가 없다. 클라이언트에서 다르게 처리하는수 밖에..
+```js
+const name = aCustomer.isUnknown ? aCustomer.name : '미확인 거주자';
+```
+이제 `isUnknown()` 함수는 안쓰기 때문에 `죽은 코드 제거하기(8.9)`로 없애준다.
+
+2. 객체 리터럴 이용하기
+- 여기에는 쓰기같은게 있어서 `UnknownCustomer`클래스로 처리했는데, 읽기만 있으면 그냥 객체 리터럴로 처리해도 된다. 훨씬 쉬우니까 결과만 보면..
+```js
+// AS-IS
+class Site {
+  get customer() { return this._customer; }
+}
+
+class Customer {
+  get name() {...} // 이름
+  get billingPlan() {...} // 요금제(읽기)
+  set billingPlan(arg) {...} // 요금제(쓰기)
+  get paymentHistory() {...} // 납부 이력
+}
+
+// TO-BE
+class Site {
+  get customer() { 
+    return this._customer; === '미확인 고객' ? createUnknownCustoer() : this._customer(); 
+  }
+}
+function createUnknownCustoer() {
+  return {
+    isUnknown: true, 
+    name: '거주자',
+    billingPlan: registery.billinPlans.basic,
+    paymenthistory: {
+      weeksDeliquentInLastYear: 0,
+    }
+  }
+}
+```
+3. 이걸 변환함수로 처리해도 된다. 역시 결과만 보자면
+```js
+function enrichSite(inputSite) {
+  const result = _.cloneDeep(inputSite);
+  const unknownCustomer = {
+    isUnknown: true,
+    billingPlan: registery.billinPlans.basic,
+    paymenthistory: {
+      weeksDeliquentInLastYear: 0,
+    }
+  }
+
+  if (isUnknown(result.customer)) result.customer = unknownCustomer;
+  else result.customer.isUnknown = false;
+  return result;
+}
+
+const rawSite = acquireSiteData();
+const site = enrichSite(rawSite);
+const aCustomer = site.customer;
+// ...
+
+```
+- 본질은 같고 부가 정보만 덧붙이는 변환 함수는 `enrich`, 형태가 변화는건 `transform` 이라고 한다고 한다.
+
+
+<br>
 
 ### 10.6 어서션 추가하기
