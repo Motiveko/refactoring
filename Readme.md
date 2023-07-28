@@ -3769,3 +3769,32 @@ applyDiscount(aNumber) {
 <br>
 
 ### 10.7 제어 플래그를 탈출문으로 바꾸기
+```js
+// AS-IS
+for(const p of people) {
+  if(!found) {  // => 제어 플래그
+    if(p === '조커') {
+      sendAlert();
+      found = true;
+    }
+  }
+}
+
+// TO-BE
+for(const p of people) {
+  if(p === '조커') {
+    sendAlert();
+    break;
+  }
+}
+```
+
+<br>
+
+### 10.7.1 설명
+- `제어 플래그`란 코드의 동작을 변경하는데 사용되는 변수를 말하며, 어딘가에서 계산해서 설정한 후 다른 어딘가의 조건문에서 검사하는 형태로 쓰인다. 항상 악취다. => 제거해야 한다.
+
+- `return`, `break`, `continue` 키워드를 적절히 써서 제어 플래그를 제거한다.
+- 순서, 예시는 생략
+
+<br>
