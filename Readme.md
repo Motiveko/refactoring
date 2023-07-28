@@ -3718,3 +3718,54 @@ const aCustomer = site.customer;
 <br>
 
 ### 10.6 어서션 추가하기
+```js
+// AS-IS
+if(this.discountRate) {
+  base = base - (this.discountRate * base);
+}
+
+// TO-BE
+aseert(this.discountRate >= 0)
+if(this.discountRate) {
+  base = base - (this.discountRate * base);
+}
+```
+
+<br>
+
+### 10.6.1 설명
+- 특정 조건이 참일 때에만 제대로 동작하는 코드가 있을 수 있다. 예를들어 제곱근 계산은 입력이 양수일 때 만 제대로 동작한다.
+- 이런게 코드에 항상 명시적으로 있진 않아서, 코드알고리즘을 보고 알아서 판단해야 하거나, 주석에 쓰기도 하는데, 어서션을 이용해서 코드에 표시하는게 최고다
+- 어서션은 오류 찾기에 쓰기도 하지만, ***'프로그램이 어떤 상태임을 가정한 채 실행되는지'를 다른 개발자에게 알려주는 훌륭한 소통 도구이다.***
+
+<br>
+
+### 10.6.2 절차
+1. 참이라고 가정하는 조건이 보이면 그 조건을 명시하는 어서션을 추가한다.
+
+<br>
+
+### 10.6.3 예시
+```js
+applyDiscount(aNumber) {
+  return this.discountRate ? aNumber - (this.discountRate) : aNumber;
+}
+```
+- 할인율은 양수여야만 한다. 
+```js
+applyDiscount(aNumber) {
+  if(!this.discountRate) return aNumber;
+  else {
+    assert(this.discountRate > 0);
+    return aNumber - (this.discountRate);
+  }
+}
+```
+- 근데 이런경우 discountRate의 세터에 assertion을 걸어주는게 좋다. `applyDiscount`에 걸어놔서 에러 떠봐야 또 원인을 분석해야 하는것이다.
+
+> 어셔선 남발은 위험하다. 반드시 참이어야 것만 검사하자. 왜냐면 조건은 항상 미세하게 조정되기 때문이다.
+> 저자는 프로그래머가 일으킬만한 오류에만 어서션을 쓴다고 한다. 데이터를 외부에서 읽어 온다면 그 값을 검사하는 작업은 어서션이 아니라 예외 처리로 대응하는 프로그램 로직의 일부로 다뤄야 한다. 데이터를 전적으로 신뢰할 수 있는 상황이 아니라면 말이다.
+
+<br>
+
+### 10.7 제어 플래그를 탈출문으로 바꾸기
