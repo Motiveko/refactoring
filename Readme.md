@@ -3798,3 +3798,108 @@ for(const p of people) {
 - 순서, 예시는 생략
 
 <br>
+
+## 11 API 리팩터링
+
+### 11.1 질의 함수와 변경 함수 분리하기
+```js
+// AS-IS
+function getTotalOutstandingAndSendBill() {
+  const result = customer.invoices.reduce((total, each) => each.amount + total, 0);
+  sendBill();
+  return result;
+}
+
+// TO-BE
+function totalOutstanding() {
+  return customer.invoices.reduce((total, each) => each.amount + total, 0);
+}
+function sendBill() {
+  emailGateway.send(formatBill(customer));
+}
+```
+
+<br>
+
+### 11.1.1 설명
+- 함수는 외부에서 관찰할 수 있는 `겉보기 부수효과(observable side effect)`가 전혀 없는, 값을 반환하는 함수를 추구해야 한다.(순수함수) => 관리가 쉽고 버그를 만들지 않는다.
+  - 예를들어 함수 반환값을 캐시하는 함수는 `겉보기 부수효과`가 있는걸까? => 캐시가 잘 구현됐다면 겉보기 부수효과는 없다.(`부수효과`는 있다. 객체 상태(캐시 필드)를 바꾸기 때문!) 어떤 순서로 호출하든 모든 호출에 항상 똑같은 값을 반환할 뿐이기 때문이다!
+- 겉보기 부수효과가 있는 함수와 없는 함수는 명확히 구분하는게 좋은데, 이를 위해 질의 함수(읽기 함수)는 모두 부수효과가 없어야 한다는 규칙을 `명령-질의 분리(command-query seperation)`이라고 한다.
+- 값을 반환하면서 부수효과도 있는 함수를 발견하면, 상태를 변경하는 부분과 질의하는 부분을 분리하려고 시도하자!
+
+<br>
+
+### 11.1.2 절차
+1. 대상 함수를 복제하고 질의 목적에 충실한 이름을 짓든다.(이게 질의함수가 되는거다)
+2. 새 질의 함수에서 부수효과를 모두 제거한다.
+3. 정적검사 수행
+4. 원래 함수(변경 함수)를 호출하는 곳을 모두 찾아서, 반환값을 사용한다면 질의 함수를 호출하도록 변경하고, 원래 함수를 호출하는 코드를 바로 아래 줄에 새로 추가한다. 매번 테스트한다.
+5. 원래 함수에서 질의 관련 코드를 제거한다.
+6. 테스트한다.
+
+<br>
+
+### 11.1.3 예시
+- 이름 목록에서 악당을 찾아 반환하는(질의) 함수가 있다. 찾으면 경고를 울린다.(부수효과)
+```js
+function alertForMiscreant(people) {
+  for(const p of people) {
+    if(['조커', '사루만'].includes(p)) {
+      setOffAlarms();
+      return p;
+    }
+  }
+}
+// 클라이언트
+const found = alertForMiscreant(people);
+```
+- 1,2 : 대상함수 복제하고 부수효과 제거한다.
+```js
+function findMiscreant(people) {
+    for(const p of people) {
+    if(['조커', '사루만'].includes(p)) {
+      return p;
+    }
+  }
+}
+```
+- 4: 원래함수 호출측에서 값을 사용하는 부분이 있으면 질의 함수로 대체하고, 바로 원래 함수를 호출하도록 한다.
+```js
+// 클라이언트
+const found = findMiscreant(people);
+alertForMiscreant(people);
+```
+
+- 5: 원래 함수에서 질의 관련 코드는 제거한다.(값 반환)
+```js
+function alertForMiscreant(people) {
+  for(const p of people) {
+    if(['조커', '사루만'].includes(p)) {
+      setOffAlarms();
+      return;
+    }
+  }
+}
+```
+- 더 가다듬기 => `findMiscreant()`, `alertForMiscreant()`함수에 중복이 많다. 변경 함수에서 질의 함수를 사용하도록 하면 좋다.(`알고리즘 교체하기(7.9)`)
+```js
+function alertForMiscreant(people) {
+  if(findMiscreant(people)) setOffAlarms();
+}
+```
+
+
+<br>
+
+### 11.2 함수 매개변수화하기
+### 11.3 플래그 인수 제거하기
+### 11.4 객체 통째로 넘기기
+### 11.5 매개변수를 질의 함수로 바꾸기
+### 11.6 질의 함수를 매개변수로 바꾸기
+### 11.7 세터 제거하기
+### 11.8 생성자를 팩터리 함수로 바꾸기
+### 11.9 함수를 명령으로 바꾸기
+### 11.10 명령을 함수로 바꾸기
+### 11.11 수정된 값 반환하기
+### 11.12 오류 코드를 예외로 바꾸기
+### 11.13 예외를 사전확인으로 바꾸기 
