@@ -3961,7 +3961,71 @@ function withBand(usage, bottom, top) {
 <br>
 
 
-### 11.3 플래그 인수 제거하기
+### 11.3 🔥플래그 인수 제거하기
+> 개인적으로, 플래그 인수를 항상 사용해 왔었는데(이게 좋다고 생각했다.) 이걸 없애는 쪽으로 사고를 전환할 필요가 있다!
+```js
+// AS-IS
+function setDimension(name, value) {
+  if(name === 'height') {
+    this._height = value;
+    return;
+  }
+  if(name === 'width') {
+    this._width = value;
+    return;
+  }
+}
+
+// TO-BE
+function setHeight(value) {this._height = value;}
+function setWidth(value) {this._width = value;}
+```
+
+<br>
+
+### 11.3.1 설명
+- `플래그 인수(flag argument)`란 호출되는 함수가 실행할 로직을 호출하는 쪽에서 선택하기 위해 전달하는 인수다.
+- 플래그 인수는 ***호출할 수 있는 함수들이 무엇이고, 어떻게 호출해야 하는지를 이해하기 어려워 지기 때문에 좋지 않다.***
+- 인수가 다 플래그 인수는 아니다. 플래그 인수가 되려면 호출하는 쪽에서 ***'프로그램에서 사용되는 데이터가 아닌' 리터럴 값을 건네야 하고***, 호출되는 함수는 그 인수를 다른 함수에 전달하는 데이터가 아닌, ***제어 흐름을 결장하는데 사용***해야 한다.
+
+- 함수 하나에서 플래그 인수를 둘 이상 사용하면, 플래그 인수를 써야 하는게 맞을 수 있다. 안쓰면 m*n 개 만큼의 함수를 구현해야 하기 때문. 하지만 다른 관점에서 보면 함수 하나가 너무 많은 일을 처리하고 있다는 신호이기도 하므로, 같은 로직을 조합해내는 더 간단한 함수를 만들 방법을 고민해 봐야 한다.
+
+<br>
+
+
+### 11.3.2 절차
+1. 매개변수로 주어질 수 있는 값 각각에 대응하는 명시적 함수를 생성한다.
+  - 주가 되는 함수에 깔끔한 분배 조건문이 포함되어 있다면 `조건문 분해하기(10.1)`로 명시적함수들을 생성한다. 그렇지 않으면 `래핑 함수` 형태로 만든다.(위험을 줄일 수 있다)
+2. 원래 함수를 호출하는 코드를 모두 찾아서 각 리터럴 값에 대응되는 명시적 함수를 호출하도록 수정한다.
+
+<br>
+
+### 11.3.3 예시
+- `래핑 함수` 형태로 처리하는 예..
+```js
+function deliveryDate(anOrder, isRush) {
+  let result;
+  let deliveryTime;
+  if(anOrder.deliveryState === 'MA' || anOrder.deliveryState === 'CT')
+    deliveryTime = isRush ? 1 : 2;
+  else if(anOrder.deliveryState === 'NY' || anOrder.deliveryState === 'NH')
+    deliveryTime = 2;
+    if(anOrder.deliveryState === 'NH' && !isRush)
+      deliveryTime = 3;
+  else if(isRush)
+    deliveryTime = 3;
+  else if(anOrder.deliveryState === 'ME')
+    //...기타등등..
+}
+```
+- 플래그 인수인 `isRush`는 코드 깊숙한 곳 군데군데에 사용되고 있다. 함수가 깔끔하게 `if(isRush) {...} else { ... }` 형태였다면 조건문 분해하기로 명시적 함수를 생성했겠지만, 이 예에서 이렇게 만드는 과정은 리스크가 있기 때문에 `래핑 함수`로 처리한다.
+```js
+function rushDeliveryDate(anOrder) { return deliveryDate(anOrder, true);}
+function regularDeliveryDate(anOrder) { return deliveryDate(anOrder, false);}
+```
+
+<br>
+
 ### 11.4 객체 통째로 넘기기
 ### 11.5 매개변수를 질의 함수로 바꾸기
 ### 11.6 질의 함수를 매개변수로 바꾸기
