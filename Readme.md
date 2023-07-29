@@ -3892,6 +3892,75 @@ function alertForMiscreant(people) {
 <br>
 
 ### 11.2 함수 매개변수화하기
+```js
+// AS-IS
+function tenPercentRaise(aPerson) {
+  aPerson.salary = aPerson.salary.multiply(1.1);
+}
+function fivePercentRaise(aPerson) {
+  aPerson.salary = aPerson.salary.multiply(1.05);
+}
+
+// TO-BE
+function raise(aPerson, factor) {
+  aPerson.salary = aPerson.salary.multiply(1 + factor);
+}
+```
+
+<br>
+
+### 11.2.1 설명
+- 두 함수의 로직이 아주 비슷하고 리터럴 값만 다르면, 그 리터럴 값을 매개변수로 받도록 하는게 훨 좋다.
+
+<br>
+
+### 11.2.2 절차
+1. 비슷한 함수 중 하나를 선택한다.
+2. `함수 선언 바꾸기(6.5)`로 리터럴들을 매개변수로 추가한다.
+3. 이 함수를 호출하는 곳 모두에 적절한 리터럴 값을 추가한다.
+4. 테스트한다.
+5. 매개변수로 받은 값을 사용하도록 함수 본문을 수정한다. 매번 테스트한다.
+6. 비슷한 다른 함수를 호출하는 코드를 찾아 매개변수화된 함수를 호출하도록 수정한다. 역시 테스트한다.
+
+<br>
+
+### 11.2.3 예시
+```js
+function baseCharge(usage) {
+  if(usage < 0) return usd(0);
+  const amount = bottomBand(usage) * 0.03 + midBand(usage) * 0.05 + topBand(usage) * 0.07;
+  return usd(amount)
+}
+
+function bottomBand(usage) {
+  return Math.min(usage, 100);
+}
+
+function midBand(usage) {
+  return usage > 100 ? Math.min(usage, 200) - 100 : 0;
+}
+
+function topBand(usage) {
+  return usage > 200 ? usage - 200 : 0 ;
+}
+```
+- bottom, mid, top 세개를 매개변수화 하려면 기본 예제보다는 복잡하다. 여기서는 매개변수를 두개를 쓰면 해결된다.
+```js
+function baseCharge(usage) {
+  if(usage < 0) return usd(0);
+  const amount = withBand(usage, 0, 100) * 0.03 + withBand(usage, 100, 200) * 0.05 + withBand(usage, 200, Infinity) * 0.07;
+  return usd(amount)
+}
+
+function withBand(usage, bottom, top) {
+  return usage > bottom ? Math.min(usage, top) - bottom : 0;
+}
+```
+- 로직을 보고 잘 생각해보면 항상 답은 나온다.
+
+<br>
+
+
 ### 11.3 플래그 인수 제거하기
 ### 11.4 객체 통째로 넘기기
 ### 11.5 매개변수를 질의 함수로 바꾸기
