@@ -4027,6 +4027,63 @@ function regularDeliveryDate(anOrder) { return deliveryDate(anOrder, false);}
 <br>
 
 ### 11.4 객체 통째로 넘기기
+```js
+// AS-IS
+const low = aRoom.daysTempRange.low;
+const hight = aRoom.daysTempRange.high;
+if(aPlan.withinRange(low, high))
+
+// TO-BE
+if(aPlan.withinRange(aRoom.daysTempRage))
+```
+<br>
+
+### 11.4.1 설명
+- 레코드를 통째로 넘기면 변화에 대응하기 쉽다. 꼭 쓰는것만 넘길 필요도 없다. 안쓰는건 그냥 둬도 된다!
+- 함수가 레코드 자체에 의존하기를 원치 않을 경우 이 리팩터링을 하지 않는데, 레코드와 함수가 서로 다른 모듈에 속한 상황이면 특히 그렇다.
+- 어떤 객체로부터 값 몇 개를 얻은 후 그 값들로만 무언가를 하는 로직이 있다면, 그 로직을 객체(class) 안으로 집어넣어야 함을 알려주는 악취로 봐야 한다! 따라서 데이터 더미를 객체(class)로 묶은 후 적용하는게 좋다.
+
+<br>
+
+### 11.4.2 절차
+1. 매개변수들을 원하는 형태로 받는 빈 함수를 만든다.
+2. 새 함수의 본문에서는 원래 함수를 호출하도록 하며, 새 매개변수와 원래 함수의 매개변수를 매핑한다.
+3. 정적 검사 수행
+4. 모든 호출자가 새 함수를 사용하게 수정한다. 매번 테스트 한다.
+  - 이 때 매개변수를 spread해서 전달하기 위해 뽑아내던 코드같은거 제거하면 된다.
+5. 호출자를 모두 수정했으면, `원래 함수를 인라인(6.2)` 한다.
+6. 새 함수의 이름을 적절히 수정하고 모든 호출자에 반영한다.
+
+<br>
+
+### 11.4.3 예시
+```js
+const low = aRoom.daysTempRange.low;
+const high = aRoom.daysTempRange.high;
+if(!aPlan.withinRange(low, high))
+  alert('방 온도가 지정 범위를 벗어났습니다.');
+
+class HeatingPlan {
+  withinRange(bottom, top) {
+    return (bottom >= this._temperatureRange.low) && (top <= this._temperatureRange.high);
+  }
+}
+```
+- 과정은 복잡한데, 간단한건 그냥 간단하게 할 수 있다. 복잡한 경우에는 위의 절차를 따른다.
+```js
+if(!aPlan.withinRange(aRoom.daysTempRange))
+  alert('방 온도가 지정 범위를 벗어났습니다.');
+
+class HeatingPlan {
+  withinRange(aNumberRange) {
+    return (aNumberRange.high >= this._temperatureRange.low) && (aNumberRange.low <= this._temperatureRange.high);
+  }
+}
+```
+
+
+<br>
+
 ### 11.5 매개변수를 질의 함수로 바꾸기
 ### 11.6 질의 함수를 매개변수로 바꾸기
 ### 11.7 세터 제거하기
