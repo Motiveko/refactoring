@@ -4085,6 +4085,84 @@ class HeatingPlan {
 <br>
 
 ### 11.5 매개변수를 질의 함수로 바꾸기
+```js
+// AS-IS
+availableVacation(anEmployee, anEmployee.grade);
+
+function availableVacation(anEmployee, grade) {...}
+
+// TO-BE
+availableVacation(anEmployee);
+
+function availableVacation(anEmployee) {
+  const grade = anEmployee.grade;
+  ...
+}
+```
+
+<br>
+
+### 11.5.1 설명
+- 매개변수는 다른 코드와 마찬가지로 중복은 피하는게 좋고, 짧을수록 이해하기 쉽다.
+- 호출하는 쪽을 간소하게 만들고, 함수에서 필요한걸 질의하도록 해서 책임을 함수로 옮긴다.
+- 매개변수를 질의 함수로 바꾸지 말아야 하는 경우도 있다
+  - 매개변수를 제거하면 피호출 함수에 원치 않는 의존성이 생길 때. => 잘 이해가 안간다.
+
+- 이 리팩터링시 조건은, 대상 함수가 `참조 투명`(referential transparency)해야 한다는 것이다. => input이 같으면 output도 같다는 것. 즉 전역 ***'변수같은걸 참조하는 방식이면 안된다는 것'이다***
+
+<br>
+
+### 11.5.2 절차
+1. 필요하다면 대상 매개변수의 값을 계산하는 코드를 `별도의 함수로 추출(6.1)`해놓는다.
+2. 함수 본문에서 대상 매개변수로의 참조를 모두 찾아서 그 값을 계산해주는 표현식을 참조하도록 한다.
+3. `함수 선언 바꾸기(6.5)`로 대상 매개변수를 제거한다.
+
+<br>
+
+### 11.5.3 예시
+```js
+class Order {
+  get finalPrice() {
+    const basePrice = this.quantity * this.itemPrice;
+    let discountLevel;
+    if(this.quantity > 100) discountLevel = 2
+    else discountLevel = 1;
+    return this.discountPrice(basePrice, discountLevel);
+  }
+
+  discountPrice(basePrice, discountLevel) {
+    switch(discountLevel) {
+      case 1: return basePrice * 0.95;
+      case 2: return basePrice * 0.9;
+    }
+  }
+}
+```
+- `임시 변수를 질의 함수로 바꾸기(7.4)`(discountLevel)를 적용하고 `매개변수를 질의 함수로 바꾸기`를 한다.
+```js
+class Order {
+  get finalPrice() {
+    const basePrice = this.quantity * this.itemPrice;
+    return this.discountPrice(basePrice);
+  }
+
+  // 임시 변수를 질의 함수로 바꾸기(7.4)
+  get discountLevel() {
+    return (this.quantity > 100) ? 2: discountLevel = 1;
+  }
+
+  discountPrice(basePrice) {
+    switch(this.discountLevel) {  // 매개변수를 질의 함수로 바꾸기
+      case 1: return basePrice * 0.95;
+      case 2: return basePrice * 0.9;
+    }
+  }
+}
+```
+
+<br>
+
+
 ### 11.6 질의 함수를 매개변수로 바꾸기
 ### 11.7 세터 제거하기
 ### 11.8 생성자를 팩터리 함수로 바꾸기
