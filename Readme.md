@@ -4164,6 +4164,73 @@ class Order {
 
 
 ### 11.6 질의 함수를 매개변수로 바꾸기
+```js
+// AS-IS
+targetTemperature(aPlan);
+function targetTemperature(aPlan) {
+  currentTemperature = thermostat.currentTemperature;
+  ...
+}
+
+// TO-BE
+targetTemperature(aPlan);
+function targetTemperature(aPlan, currentTemperature) {
+  ...
+}
+```
+
+<br>
+
+### 11.6.1 설명
+- `매개변수를 질의 함수로 바꾸기(11.5)`의 반대 리팩토링
+- 함수 내에 전역변수 참조나 같은 모듈 내에서도 제거하길 윈하는 원소를 참조하는 경우 등 상황에서는 해당 참조를 매개변수로 바꿔주는게 좋다.
+
+
+<br>
+
+### 11.6.2 절차
+1. `변수 추출하기(6.3)`로 질의 코드를 함수 본문의 나머지 코드와 분리한다.
+2. 함수 본문 중 해당 질의를 호출하지 않는 코드들을 별도의 `함수로 추출(6.1)`한다.
+3. 방금 만든 `변수를 인라인(6.4)` 하여 제거한다.
+4. 원래 `함수도 인라인(6.2)` 한다.
+5. 새 함수의 이름을 원래 함수의 이름으로 고쳐준다.
+
+<br>
+
+### 11.6.3 예시
+```js
+class HeatingPlan {
+  get targetTemperature() {
+    if(thermostat.selectedTemperature > this._max) return this._max;
+    else if(thermostat.selectedTemperature < this._min) return this._min;
+    else return thermostat.selectedTemperature;
+  }
+}
+
+// 호출
+if(thePlan.targetTemperature > thermostat.currentTemperature) setToHeat();
+else if(thePlan.targetTemperature < thermostat.currentTemperature) setToCool();
+else setOff();
+```
+- `HeatingPlan`의 `targetTemperature`이 전역변수 `thermostat.selectedTemperature`를 참조하고 있다. 이 참조를 매개변수로 만들어서 참조 투명성을 가지는 함수로 탈바꿈 시키자.
+```js
+class HeatingPlan {
+  targetTemperature(selectedTemperature) {
+    if(selectedTemperature > this._max) return this._max;
+    else if(selectedTemperature < this._min) return this._min;
+    else return selectedTemperature;
+  }
+}
+
+// 호출
+if(thePlan.targetTemperature(thermostat.selectedTemperature) > thermostat.currentTemperature) setToHeat();
+else if(thePlan.targetTemperature(thermostat.selectedTemperature)  < thermostat.currentTemperature) setToCool();
+else setOff();
+```
+
+<br>
+
+
 ### 11.7 세터 제거하기
 ### 11.8 생성자를 팩터리 함수로 바꾸기
 ### 11.9 함수를 명령으로 바꾸기
