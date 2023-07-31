@@ -4566,7 +4566,56 @@ function charge(customer, usage) {
 
 <br>
 
-
 ### 11.11 수정된 값 반환하기
+```js
+// AS-IS
+let totalAscent = 0;
+calculateAscent();
+
+function calculateAscent() {
+  for(let i = 1; i < points.length; i++) {
+    const verticalChange = points[i].elevation - points[i-1].elevation;
+    totalAscent += (verticalChange > 0) ? verticalChange : 0;
+  }
+}
+
+// TO-BE
+const totalAscent = calculateAscent();
+
+function calculateAscent() {
+  let result = 0
+  for(let i = 1; i < points.length; i++) {
+    const verticalChange = points[i].elevation - points[i-1].elevation;
+    result += (verticalChange > 0) ? verticalChange : 0;
+  }
+  return result;
+}
+```
+
+<br>
+
+### 11.11.1 설명
+- 데이터가 여기저기서 참조되어 수정된다면 흐름을 알기가 너무 어려워진다. 데이터가 수정되면 그 사실을 명확히 알려주는게 중요하다.
+- 여기서 좋은 방법이, 변수를 갱신하는 함수라면 수정된 값을 반환하게 하는 것이다. 
+- 어쨋거나 결국 참조 투명성을 지키는게 중요한듯하다.
+
+<br>
+
+### 11.11.2 절차
+1. 함수가 수정된 값을 반환하게 하여 호출자가 그 값을 자신의 변수에 저장하게 한다.
+2. 테스트.
+3. 피호출 함수 안에 반환할 값을 가리키는 새로운 변수를 선언한다.
+4. 테스트
+5. 계산과 선언이 동시에 이뤄지도록 통합한다.
+6. 테스트
+7. 피호출 함수의 변수 이름을 새 역할에 어울리게 바꾼다.
+
+<br>
+
+### 11.11.3 예시
+- 간단한거라 생략한다. 위에 예제로 충분
+
+<br>
+
 ### 11.12 오류 코드를 예외로 바꾸기
 ### 11.13 예외를 사전확인으로 바꾸기 
