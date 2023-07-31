@@ -4330,7 +4330,200 @@ const leadEngineer = createEngineer(document.leadEngineer);
 <br>
 
 
-### 11.9 함수를 명령으로 바꾸기
+### 11.9 🔥함수를 명령으로 바꾸기
+```js
+// AS-IS
+function score(candidate, medicalExam, scoringGuide) {
+  let result = 0;
+  let healthLevel = 0;
+  ...
+}
+
+// TO-BE
+class Scorer {
+  constructor(candidate, medicalExam, scoringGuide) {
+    this._candidate = candidate;
+    this._medicalExam = medicalExam;
+    this._scoringGuide = scoringGuide;
+  }
+
+  execute() {
+    this._result = 0;
+    this._healthLevel = 0;
+    ...
+  }
+}
+```
+
+<br>
+
+### 11.9.1 설명
+- 함수를 그 함수만을 위한 객체 안으로 캡슐화 할 때, 이 객체를 `명령 객체` 혹은 단순이 `명령`(command)라고 한다. 명령은 대부분 하나의 메서드로 이뤄져있다.
+  > `명령`은 커맨드(명령) 패턴에서의 커맨드와 같다
+- `명령`은 평범한 함수 메커니즘보다 훨씬 유연하게 함수를 제어하고 표현할 수 있다.
+  - undo 같은 보조연산 제공 가능
+  - 수명 주기를 더 정밀하게 제어하는데 필요한 매개변수를 만들어주는 메서드 제공 가능
+  - 상속과 훅을 이용해 사용자 맞춤으로 만들 수 있다.
+  - `일급 함수`를 지원하지 않는 언어에서 `일급 함수`를 흉내낼 수 있다.
+  - `중첩 함수`를 지원하지 않는 언어에서 명령에 메서드를 여러개 만들어서 `중첩 함수`역할을 대체할 수 있다.
+- 이런 ***유연성은 복잡성을 키우고 얻는 대가***다. 대부분의 상황에서는 `일급 함수`(순수함수)가 더 낫다.
+
+<br>
+
+### 11.9.2 절차
+1. 대상 함수의 기능을 옮길 빈 클래스를 만든다.
+2. 빈 클래스를 함수로 옮긴다.
+3. 함수의 인수들은 명령의 필드로 만든다. 생성자에서 받을지는 고민해본다.
+
+<br>
+
+### 11.9.3 예시
+- 명령은 보통 길고 **복잡한 함수를 잘게 쪼개서 이해하거나 수정하기 쉽게 만드는데**에 좋다.
+- 건강보험 애플리케이션에서 사용하는 점수 계산 함수를 예로 든다.
+```js
+function score(candidate, medicalExam, scoringGuide) {
+  let result = 0;
+  let healthLevel = 0;
+  let highMedicalRiskFlag = false;
+  if(medicalExam.isSmoker) {
+    healthLevel += 10;
+    highMedicalRiskFlag = true;
+  }
+  let certificationGrade = 'regular';
+  if(scoringGuide.stateWithLowCertification(candidate.originState)) {
+    certificationGrade = 'low';
+    result -=5;
+  }
+  
+  // ...
+
+  result -= Math.max(healthLevel - 5, 0);
+  return result;
+}
+```
+- 우선 클래스를 하나 만들고(`Scorer`) 메서드를 만들어서 함수와 시그니쳐를 맞춘다.
+```js
+class Scorer {
+  execute(candidate, medicalExam, scoringGuide) {
+    let result = 0;
+    let healthLevel = 0;
+    let highMedicalRiskFlag = false;
+    if(medicalExam.isSmoker) {
+      healthLevel += 10;
+      highMedicalRiskFlag = true;
+    }
+    let certificationGrade = 'regular';
+    if(scoringGuide.stateWithLowCertification(candidate.originState)) {
+      certificationGrade = 'low';
+      result -=5;
+    }
+  
+    //...
+  
+    result -= Math.max(healthLevel - 5, 0);
+    return result;
+  }
+}
+
+function score(candidate, medicalExam, scoringGuide) {
+  return new Scorer().execute(candidate, medicalExam, scoringGuide);
+}
+```
+- 이건 간단한 예였지만, 보통 복잡한 함수를 명령으로 만들때는 여러가지 라이프사이클 관리라던가, 상태라던가.. 이런게 복잡하게 필요해서다. 따라서 함수 인자들을 모두 생성자로 받아서 필드로 다루는게 (보통)좋다.
+```js
+class Scorer {
+  constructor(candidate, medicalExam, scoringGuide) {
+    this._candidate = candidate;
+    this._medicalExam = medicalExam;
+    this._scoringGuide = scoringGuide;
+  }
+  
+  execute() {
+    let result = 0;
+    let healthLevel = 0;
+    let highMedicalRiskFlag = false;
+    if(this._medicalExam.isSmoker) {
+      healthLevel += 10;
+      highMedicalRiskFlag = true;
+    }
+    let certificationGrade = 'regular';
+    if(this._scoringGuide.stateWithLowCertification(this._candidate.originState)) {
+      certificationGrade = 'low';
+      result -=5;
+    }
+  
+    //...
+  
+    result -= Math.max(healthLevel - 5, 0);
+    return result;
+  }
+}
+
+function score(candidate, medicalExam, scoringGuide) {
+  return new Scorer(candidate, medicalExam, scoringGuide).execute();
+}
+```
+- 이 리팩터링의 본래 목적은 복잡한 함수를 잘게 나누는 것이다. 
+- 메서드 내의 (필요한)모든 지역변수(상태)를 필드로 바꾼다.
+```js
+class Scorer {
+  execute() {
+    this._result = 0;
+    this._healthLevel = 0;
+    this._highMedicalRiskFlag = false;
+    if(this._medicalExam.isSmoker) {
+      this._healthLevel += 10;
+      this._highMedicalRiskFlag = true;
+    }
+    this._certificationGrade = 'regular';
+    if(this._scoringGuide.stateWithLowCertification(this._candidate.originState)) {
+      this._certificationGrade = 'low';
+      result -=5;
+    }
+  
+    //...
+  
+    this._result -= Math.max(this._healthLevel - 5, 0);
+    return this._result;
+  }
+}
+```
+- 이렇게 하면 복잡한 함수의 부분 부분을 `함수 추출하기(6.1)`하기가 쉬워진다.
+```js
+class Scorer {
+    execute() {
+    this._result = 0;
+    this._healthLevel = 0;
+    this._highMedicalRiskFlag = false;
+    this.scoreSmoking();
+    this._certificationGrade = 'regular';
+    if(this._scoringGuide.stateWithLowCertification(this._candidate.originState)) {
+      this._certificationGrade = 'low';
+      result -=5;
+    }
+  
+    //...
+  
+    this._result -= Math.max(this._healthLevel - 5, 0);
+    return this._result;
+  }
+
+  scoreSmoking() {  // 함수 추출히가기 쉽다!!
+    if (this._medicalExam.isSmoker) {
+      this._healthLevel += 10;
+      this._highMedicalRiskFlag = true;
+    }
+  }
+}
+```
+- 이런건 자바스크립트에서는 `중첩 함수`로 처리해도 되긴 한다. 근데 저자는 명령이 더 좋다고 한다. 서브 함수들을 테스트와 디버깅에 활용할 수 있기 때문이라고!
+
+> 명령이라는건 결국 [Command 패턴](https://gmlwjd9405.github.io/2018/07/07/command-pattern.html) 구현하는건데, 보통 java에서 커맨드패턴 구현하는 목적의 경우가 ***js에서는 함수가 일급 객체이기 때문에 함수 전달하는게 훨씬 직관적***이다.( ex 콜백함수 등록). js에서 Command 패턴 구현하는건 진짜 기능이 길고 의존관계가 복잡하고 라이프사이클 관리같은걸 해야할 때 뿐일듯 하다.
+
+
+<br>
+
+
 ### 11.10 명령을 함수로 바꾸기
 ### 11.11 수정된 값 반환하기
 ### 11.12 오류 코드를 예외로 바꾸기
