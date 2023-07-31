@@ -4264,6 +4264,72 @@ class Person {
 
 
 ### 11.8 생성자를 팩터리 함수로 바꾸기
+```js
+// AS-IS
+leadEngineer = new Employee(document.leadEngineer, 'E');
+
+// TO-BE
+leadEngineer = createEngineer(document.leadEngineer);
+```
+<br>
+
+### 11.8.1 설명
+- 생성자는 제약이 있다. 반드시 생성자를 정의한 클래스의 인스턴스를 반환해야 하고, 서브클래스 인스턴스나 프락시를 반환할 수 없다. 문법도 고정되어 있고, 일반 함수가 오길 기대하는 자리에는 쓰기 어렵다.
+- 팩터리 함수에는 이런 제약이 없기 때문에 좋다.
+
+<br>
+
+### 11.8.2 절차
+1. 팩터리 함수를 만든다. 팩터리 함수 본문에서 원래의 생성자를 호출한다.
+2. 생성자 호출하던 코드를 팩터리 함수 호출로 바꾼다.
+3. 테스트한다.
+4. 생성자의 가시 범위가 최소가 되도록 제한한다.(private)
+
+<br>
+
+### 11.8.3 예시
+- 직원(`Employee`) 유형을 다루는 예제
+```js
+class Employee {
+  constructor(name, typeCode) {
+    this._name = name;
+    this._typeCode = typeCode;
+  }
+
+  get name() {return this._name;}
+  get type() {
+    return Employee.legalTypeCodes[this._typeCode];
+  }
+  static get legalTypeCodes() {
+    return {'E': 'Engineer', 'M', 'Manager', 'S': 'Salesperson'};
+  }
+}
+
+// 사용
+candidate = new Employee(document.name, document.empType);
+const leadEngineer = new Employee(document.leadEngineer, 'E');
+
+```
+- 팩터리 함수를 만들고 생성자 호출을 대체한다.
+```js
+function createEmployee(name, typeCode) {
+  return new Employee(name, typeCode);
+}
+candidate = createEmployee(document.name, document.empType);
+const leadEngineer = createEmployee(document.leadEngineer, 'E');
+```
+
+- 두번째 호출에서, 리터럴 값`'E'` 를 전달하는건 악취다. 대신 ***직원 유형을 팩터리 함수의 이름에 녹이는 방식이 좋다.***
+```js
+function createEngineer(name) {
+  return new Employee(name, 'E');
+}
+const leadEngineer = createEngineer(document.leadEngineer);
+```
+
+<br>
+
+
 ### 11.9 함수를 명령으로 바꾸기
 ### 11.10 명령을 함수로 바꾸기
 ### 11.11 수정된 값 반환하기
