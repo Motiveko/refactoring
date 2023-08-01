@@ -4618,4 +4618,58 @@ function calculateAscent() {
 <br>
 
 ### 11.12 오류 코드를 예외로 바꾸기
+```js
+// AS-IS
+if(data) 
+  return new ShippingRules(data);
+else 
+  return -23;
+
+// TO-BE
+if(data)
+  return new ShippingRules(data);
+else
+  throw new OrderProcessingError(-23);
+```
+
+<br>
+
+### 11.12.1 설명
+- 옛날에는 오류 코드(error code)를 쓰는게 보편적이었다.
+  - 함수 호출시 오류 코드를 반환할 수 있고
+  - 오류 코드 검사 코드를 추가한다.
+  - 직접 처리하거나, 콜스택 위로 계속 던진다.(`return`)
+- 예외는 적절한 예외 핸들러를 찾을 때까지 콜스택을 타고 알아서 전파된다. 일일이 검사해서 다시 던질 필요는 없다. ***이런 예외의 독자적인 흐름은 프로그램의 나머지에서 오류 발생에 따른 복잡한 상황에 대처하는 코드를 작성하거나 읽을 일이 없어지게 한다.***
+- 예외는 정확히 ***'예상 밖의 동작'***일 때만 써야 한다. 
+  - 예외를 던지는 코드를 프로그램 종료 코드로 바꿔도 프로그램이 여전히 정상 동작할지를 따져봐야 한다! => 이건 동의할 수가 없다. FE에서 api호출시 404하나 뜬다고 프로그램 죽여야하나?
+
+- 절차/예시는 일반적이므로 생략. 나는 에러코드 안던진다.
+
+<br>
+
 ### 11.13 예외를 사전확인으로 바꾸기 
+```java
+// AS-IS
+double getValueForPeriod(int periodNumber) {
+  try {
+    return values[periodNumber];
+  } catch(ArrayIndexOutOfBoundsException e) {
+    return 0;
+  }
+}
+
+// TO-BE
+double getValueForPeriod(int periodNumber) {
+  return (periodNumber >= values.length) ? 0 : values[periodNumber];
+}
+```
+
+<br>
+
+### 11.13.1 설명
+- 예외는 '뜻밖의 오류'라는, 말 그대로 예외적으로 동작할 때 쓰여야 한다. **함수 수행 시 문제가 될 수 있는 조건을 함수 호출 전에 검사할 수 있다면, 예외를 던지는 대신 호출하는 곳에서 조건을 검사해야 한다.**
+  - 예를들어, api 호출시 200을 줄지 404를 줄지는 체크할 수가 없다. => 예외
+
+- 절차/예시는 생략한다.
+
+<br>
