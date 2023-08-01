@@ -4673,3 +4673,97 @@ double getValueForPeriod(int periodNumber) {
 - 절차/예시는 생략한다.
 
 <br>
+
+## 12. 상속 다루기
+### 12.1 메서드 올리기
+```js
+// AS-IS
+class Employee{...}
+
+class SalesPerson extends Employee {
+  get name() {...}
+}
+class Engineer extends Employee {
+  get name() {...}
+}
+
+// TO-BE
+class Employee {
+  get name() {...}
+}
+class SalesPerson {...}
+class Engineer {...}
+```
+
+<br>
+
+### 12.1.1 설명
+- 중복은 위험하다. 한쪽의 변경이 다른쪽에는 반영되지 않을 수 있기 때문. 하지만 중복을 찾는게 쉽지 않다.(완전 똑같은건 잘 없다.) `메서드 올리기`는 중복을 제거하는데 유용하다.
+- 다른 두 클래스 각각의 메서드가 거의 같은 일을 할 경우, `함수 매개변수화(11.2)`를 통해 하나의 메서드로 만들고 `메서드 올리기` 할 수 있다.
+- 두 메서드가 흐름이 비슷하지만 세부 내용이 다르면 `템플릿 메서드 만들기`를 고려한다.([템플릿 메서드 패턴](https://gmlwjd9405.github.io/2018/07/13/template-method-pattern.html))
+
+<br>
+
+### 12.1.2 절차
+1. 똑같이 동작하는 메서드인지 면밀히 살핀다.
+- 실질적으로 하는 일이 같은데 코드가 다르면, 본문 코드가 같아질 때 까지 리팩터링 한다.
+2. 메서드 안에서 호출하는 다른 메서드와 참조하는 필드들을 슈퍼클래스에서도 호출/참조할 수 있는지 확인한다.
+3. 메서드 시그니처가 다르면 `함수 선언 바꾸기(6.5)`로 슈퍼클래스에서 사용하고 싶은 형태로 통일한다.
+4. 슈퍼클래스에 새로운 메서드를 생성하고 대상 메서드의 코드를 복붙한다.
+5. 정적 검사
+6. 서브클래스 중 하나의 메서드를 제거한다.
+7. 테스트
+8. 모든 서브클래스의 메서드가 없어질 때까지 다 제거하고 테스트한다.
+
+### 12.1.3 예시
+```js
+class Party {}
+class Employee extends Party {
+  get annualCost() {
+    return this.monthlyCost * 12;
+  }
+  get monthlyCost() {...};
+}
+class Department extends Party {
+  get totalAnnualCost() {
+    return this.monthlyCost * 12;
+  }
+  get monthlyCost() {...};
+}
+```
+- 2: `monthlyCost()`는 서브클래스에만 정의되어 있다. 정적언어(Java)였으면 `Party`에 추상 메서드 정의해야 하지만 js에서는 괜찮다.
+- 3: 두 메서드의 이름은 다르지만, 하는 동작은 같다. 함수 선언바꾸기로 통일한다. 4: 슈퍼클래스에 새로운 메서드도 넣는다. 이후 서브클래스의 `annualCost()`를 하나씩 제거하고 테스트하면 된다.
+```js
+class Employee extends Party {
+  get monthlyCost() {...};
+}
+class Department extends Party {
+  get monthlyCost() {...};
+}
+class Party {
+  get annualCost() {
+    return this.monthlyCost * 12;
+  }
+}
+```
+- js는 추상 메서드가 없기 때문에 이렇게 끝나지만, ts에서는 추상 메서드를 넣어줘야한다.(이것도 같은 동작이라면 그냥 슈퍼클래스에 구현한다.) js에서는 여기서 아래와 같이도 처리할 수 있긴 하다
+```js
+class Party {
+  get monthlyCost() {
+    throw new SubclassResponsibilityError();
+  }
+}
+``` 
+
+<br>
+
+### 12.2 필드 올리기
+### 12.3 생성자 본문 올리기
+### 12.4 메서드 내리기
+### 12.5 필드 내리기
+### 12.6 타입 코드를 서브클래스로 바꾸기
+### 12.7 서브클래스 제거하기
+### 12.8 슈퍼클래스 추출하기
+### 12.9 계층 합치기
+### 12.10 서브클래스를 위임으로 바꾸기
+### 12.11 슈퍼클래스를 위임으로 바꾸기
