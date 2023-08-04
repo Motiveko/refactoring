@@ -4758,7 +4758,125 @@ class Party {
 <br>
 
 ### 12.2 필드 올리기
+```java
+// JAVA
+// AS-IS
+class Employee{...}
+class SalesPerson extends Employee {
+  private String name;
+}
+class Engineer extends Employee {
+  private String name;
+}
+
+// TO-BE
+class Employee{
+  protected String name;
+}
+class SalesPerson extends Employee {}
+class Engineer extends Employee {}
+```
+
+<br>
+
+### 12.2.1 설명
+- 서브클래스가 나중에 독립적으로 개발되거나 하면, 필드 중복이 왕왕 일어난다. 이 때 필드 이름은 다르지만 역할이 같은 경우도 있으니 잘 살펴보아야 한다.
+- 필드를 위로 올리면, 1. 데이터 중복 선언을 없애고, 2. 해당 필드를 사용하는 동작을 슈퍼클래스로 옮길 수 있다.
+
+<br>
+
 ### 12.3 생성자 본문 올리기
+```js
+// AS-IS
+class Party {...}
+class Employee extends Party {
+  constructor(name, id, monthlyCost) {
+    super();
+    this._id = id;
+    this._name = name;
+    this._monthlyCost = monthlyCost;
+  }
+}
+
+// TO-BE
+class Party {
+  constructor(name) {
+    this._name = name;
+  }
+}
+class Employee extends Party {
+  constructor(name, id, monthlyCost) {
+    super(name);
+    this._id = id;
+    this._monthlyCost = monthlyCost;
+  }
+}
+```
+
+<br>
+
+### 12.3.1 설명
+- 생성자는 다루기 까다로워, 하는 일이 많지 않을수록 좋다.
+- 서브클래스들에서 같은 기능의 메서드를 발견하면 `메서드 올리기`를 적용하듯, 생성자 중복로직도 올릴 수 있다. 
+
+<br>
+
+### 12.3.2 절차
+1. 슈퍼클래스에 생성자가 없다면 하나 정의한다.
+2. `문장 슬라이드하기(8.6)`로 공통 문장 모두를 super() 호출 직후로 옮긴다.
+3. 공통 코드를 슈퍼클레스에 추가하고 서브클래스에서 제거한다. 생성자 매개변수 중 공통 코드에서 참조하는 값들을 모두 super로 건넨다.
+4. 테스트
+5. 생성자 시작 부분으로 옮길 수 없는 공통 코드에는 `함수 추출하기(6.1)`와 `메서드 올리기(12.1)`를 차례로 적용한다.
+
+<br>
+
+### 12.3.3 예시
+- 절차 중 5.에 해당하는것만 본다.
+```js
+class Employee {
+  constructor(name) {...}
+  get isPrivileged() {...}
+  assignCar() {...}
+}
+
+class Manager extends Employee {
+  constructor(name, grade) {
+    super(name);
+    this._grade = grade;
+    if(this.isPrivileged) this.assingCar(); // 모든 서브클래스가 수행
+  }
+  get isPrivileged() {
+    return this._grade > 4;
+  }
+}
+```
+- `isPrivileged()`의 구현은 서브클래스마다 달라지는데, `Manager`에서는 반드시 `this._grade = grade;`를 한 후 호출이 되어야하는 제약사항이 있다. 따라서 해당 코드를 Employee로 옮길 수 없는것이다. 여기에서 
+  > 5. 생성자 시작 부분으로 옮길 수 없는 공통 코드에는 `함수 추출하기(6.1)`와 `메서드 올리기(12.1)`를 차례로 적용한다.
+- 를 적용할 수 있는것이다. 결과는 아래와 같다.
+```js
+class Employee {
+  constructor(name) {...}
+  get isPrivileged() {...}
+  assignCar() {...}
+  finishConstruction() {  // 메서드올리기(12.1) 
+    if(this.isPrivileged) this.assingCar();   // 함수추출하기(6.1)
+  }
+}
+
+class Manager extends Employee {
+  constructor(name, grade) {
+    super(name);
+    this._grade = grade;
+    this.finishConstruction();
+  } 
+  get isPrivileged() {
+    return this._grade > 4;
+  }
+}
+```
+
+<br>
+
 ### 12.4 메서드 내리기
 ### 12.5 필드 내리기
 ### 12.6 타입 코드를 서브클래스로 바꾸기
