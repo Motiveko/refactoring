@@ -4878,7 +4878,53 @@ class Manager extends Employee {
 <br>
 
 ### 12.4 메서드 내리기
+```js
+// AS-IS
+class Employee {
+  get quota {...}
+}
+class Engineer extends Employee {...}
+class SalesPerson extends Employee {...}
+
+// TO-BE
+class Employee {...}
+
+class Engineer extends Employee {...}
+class SalesPerson extends Employee {
+  get quota {...}
+}
+```
+
+<br>
+
+### 12.4.1 설명
+- 특정 서브클래스(들)와만 관련된 메서드는 슈퍼클래스에서 서브클래스로 내리는게 좋다.
+- 호출자가 서브클래스 타입을 정확히 알 때만 사용해야 하고, 그렇지 못한 상황이라면 서브클래스에 따라 다르게 동작하는 슈퍼클래스의 기민적인 조건부 로직을 `다형성(10.4)`으로 바꿔야 한다. (이게 정확하게 무슨말인지 잘 모르겠다.)
+
+<br>
+
+
 ### 12.5 필드 내리기
+```js
+// AS-IS
+class Employee {
+  private String quota;
+}
+class Engineer extends Employee {...}
+class SalesPerson extends Employee {...}
+
+// TO-BE
+class Employee {...}
+
+class Engineer extends Employee {...}
+class SalesPerson extends Employee {
+  protected String quota;
+}
+```
+- 특정 서브클래스(들)에서만 사용되는 필드는 해당 서브클래스(들)로 옮기자.
+
+<br>
+
 ### 12.6 타입 코드를 서브클래스로 바꾸기
 ### 12.7 서브클래스 제거하기
 ### 12.8 슈퍼클래스 추출하기
