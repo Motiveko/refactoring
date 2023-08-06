@@ -4926,6 +4926,232 @@ class SalesPerson extends Employee {
 <br>
 
 ### 12.6 타입 코드를 서브클래스로 바꾸기
+```js
+// AS-IS 
+function createEmployee(name, type) {
+  return new Employee(name, type);
+}
+
+// TO-BE
+function createEmployee(name, type) {
+  switch(type) {
+    case 'engineer': return new Engineer(name);
+    case 'salesperson': return new SalesPerson(name);
+    ...
+  }
+}
+```
+<br>
+
+### 12.6.1 설명
+- 소프트웨어에서 비슷한 대상들을 특정 특성에 따라 구분해야 할 경우가 있다. 직원을 담당업무로 구분(엔지니어, 관리자, 영업자)하거나 주문을 시급성으로 구분(급함, 보통)하기도 한다. 이런 곳에 타입코드(`type code`)필드가 쓰인다.
+- 타입 코드 만으로 불편한 경우, `서브클래스`가 필요할 때가 생긴다. 서브클래스가 되면 아래와 같은 장점이 생긴다.
+  - 조건에 따라 다르게 동작하도록 `다형성`을 제공할 수 있다.
+  - 특정 타입에서만 의미가 있는 값을 사용하는 필드나 메서드가 있을 때 유용하다.
+    - 예를들어 `판매 목표`는 `영업자`객체에게만 유용하다.
+    - 이런 상황에선 서브클래스를 만들고, 서브클래스만 해당 필드를 갖게 한다(`필드 내리기(12.5)`)
+
+- 이 리팩토링은 두 가지 유형으로 이뤄진다.
+    1. 대상 클래스에 직접 적용(대상 클래스를 서브클래싱)
+    2. 타입 코드 자체에 적용(타입 코드를 원시값이 아닌 class로 정의하는 형태)
+- `2. 타입 코드 자체에 적용`의 방식이 필요한 이유는, 예를들어 타입 코드(업무 유형)을 다른 용도로 쓰고 싶을 수 있기 때문이다. 또한, 유형이 불변일 때도 직접 서브클래싱 방식은 이용할 수 없다.(?)
+
+<br>
+
+### 12.6.2 절차
+1. 타입 코드 필드를 자가 캡슐화 한다.
+2. 타입 코드 값 하나를 선택하여 그 값에 해당하는 서브클래스를 만든다. 타입 코드 게터 메서드를 오버라이드 하여 해당 타입 코드의 리터럴 값을 반환하게 한다.
+3. 매개변수로 받은 타입 코드와 방금 만든 서브클래스를 매핑하는 선택 로직을 만든다.
+4. 테스트한다.
+5. 타입 코드 값 각각에 대해 서브클래스 생성, 선택로직 추가를 반복하고 테스트한다.
+6. 타입 코드 필드를 제거한다.(선택사항)
+7. 테스트한다.
+8. 타입 코드 접근자를 이용하는 메서드 모두에 `메서드 내리기(12.4)`와 `조건부 로직을 다형성으로 바꾸기(10.4)`를 적용한다.
+
+
+<br>
+
+### 12.6.3 예시
+1. 직접 상속의 경우(서브클래싱)
+- 직원 코드를 리팩터링한다.
+```js
+class Employee {
+  constructor(name, type){
+    this.validateType(type);
+    this._name = name;
+    this._type = type;
+  }
+
+  validateType(arg) {
+    if(!['engineer', 'manager', 'salesperson'].includes(arg)) {
+      throw new Error(`${arg}라는 직원 유형은 없습니다.`);
+    }
+  }
+  toString() {return `${this._name}(${this._type})`};
+}
+```
+- 1: 타입 코드 변수를 자가 캡슐화(6.6)한다.
+```js
+class Employee {
+  ...
+
+  get type() { return this._type; }
+  toString() {return `${this._name}(${this.type})`};
+}
+```
+- 타입 코드 하나('engineer')를 골라 서브클래싱한다.
+```js
+class Engineer extends Employee {
+  get type() {return 'engineer';}
+}
+```
+- 이제 이걸 사용하도록 해야 한다. 자바스크립트에서는 `Employee`의 생성자에서도 `Engineer`인스턴스를 반환하는 식으로 할 수 있으나, 좋은 방식이 아니다. 
+- 3: `생성자를 팩터리 함수로 바꾸고(11.8)` 'engineer'타입을 `Engineer`인스턴스에 매핑한다.
+```js
+function createEmployee(name, type) {
+  switch(type) {
+    case 'engineer': return new Engineer(name, type);
+  }
+  return new Employee(name, type);
+}
+```
+- 5: 남은 유형도 똑같이 한다.
+```js
+class SalesPerson extends Employee {
+  get type() {return 'salesperson';}
+}
+
+class Manager extends Employee {
+  get type() {return 'manager';}
+}
+
+function createEmployee(name, type) {
+  switch(type) {
+    case 'engineer': return new Engineer(name, type);
+    case 'salesperson': return new SalesPerson(name, type);
+    case 'manager': return new Manager(name, type);
+  }
+  return new Employee(name, type);
+}
+```
+- 6: 모든 타입에 적용했으면, 타입코드 필드와 슈퍼클래스의 게터를 제거한다.
+```js
+class Employee {
+  constructor(name){
+    this._name = name;
+  }
+  toString() {return `${this._name}(${this.type})`}; // 제거하지 않았는데, type게터가 서브클래스에는 존재하기 때문. 어차피 Employee 인스턴스는 아래에서 보다시피 만들지 않는다.(_type을 type으로 게터 쓰도록 만든 이유는 Employee의 type필드를 지우기 위함이었다!)
+}
+
+function createEmployee(name, type) {
+  switch(type) {
+    case 'engineer': return new Engineer(name);
+    case 'salesperson': return new SalesPerson(name);
+    case 'manager': return new Manager(name);
+    default: throw new Error(`${type}라는 직원 유형은 없습니다.`);
+  }
+}
+```
+- 서브클래스의 `type 게터`는 지워도 되나, 이걸 참조하는 다른 코드가 있을수도 있기 때문에(`toString()`) 지워야 할 경우,8: `조건부 로직을 다형성으로 바꾸기(10.4)`,`메서드 내리기(12.4)`를 적용해서 문제를 해결할 수 있다.
+  - 여기서는 toString을 (필요한)각 서브클래스에 구현하고 메서드 내 `this.type`을 하드코딩(`'engineer'`, ...) 해주는 방식으로 `type 게터` 제거 가능하다.
+  
+<br>
+
+2. 간접 상속의 경우(타입을 클래스로)
+- 처음 상황으로 돌아간다. `Employee`를 상속하는 `아르바이트`,`정직원` 클래스가 이미 존재해서 직접 상속으로 `Engieer`, `Manger`, `Salesperson` 객체를 만드는 방식으로는 타입 문제를 대처하기가 어렵다.
+- 직원 유형을 변경하고 싶다는 점(`불변`)도 직접 상속을 쓰고싶지 않은 이유다
+
+```js
+class Employee {
+  constructor(name, type){
+    this.validateType(type);
+    this._name = name;
+    this._type = type;
+  }
+
+  validateType(arg) {
+    if(!['engineer', 'manager', 'salesperson'].includes(arg)) {
+      throw new Error(`${arg}라는 직원 유형은 없습니다.`);
+    }
+  }
+
+  get type() { return this._type; }
+  set type(arg) {return this._type = arg;} // 불변, 통째로 바꿔야 한다.
+
+  get capitalizedType() {
+    return this._type.charAt(0).toUpperCase() + this._type.substr(1).toLowerCase();
+  }
+  toString() {return `${this._name}(${this.capitalizedType})`};
+}
+```
+- 1: 타입 코드를 객체로 바꾼다. (`기본형을 객체로 바꾸기(7.3)`)
+```js
+class Employee {
+  ...
+
+  get typeString() { return this._type.toString();}
+  get type() { return this._type; }
+  set type(arg) {return this._type = new EmployeeType(arg);} // 불변, 통째로 바꿔야 한다.
+
+  get capitalizedType() {
+    return this.typeString.charAt(0).toUpperCase() + this.typeString.substr(1).toLowerCase();
+  }
+  toString() {return `${this._name}(${this.capitalizedType})`};
+}
+
+class EmployeeType {
+  constructor(aString) {
+    this._value = aString;
+  }
+  toString() {return this._value;}
+}
+```
+- `EmployeeType`클래스를 만들었고, `set type()`에서 원시값을 객체로 바꾸도록 했다. type의 string값이 필요한경우, `typeString`게터를 쓴다.
+- 이제 직원 유형을 하나씩 리팩토링한다.
+```js
+class Employee {
+  ...
+
+  set type(arg) {return this._type = Employee.createEmployeeType(arg)} 
+  static createEmployeeType(aString) {
+    switch(aString) {
+      case 'engineer': return new Engineer();
+      case 'salesperson': return new SalesPerson();
+      case 'manager': return new Manager();
+      default: throw new Error(`${aString}라는 직원 유형은 없습니다.`);
+    }
+  }
+
+  ...
+}
+class Engineer extends EmployeeType {
+  toString() { return 'engineer'; }
+}
+class Manager extends EmployeeType {
+  toString() { return 'manager'; }
+}
+class SalesPerson extends EmployeeType {
+  toString() { return 'salesPerson'; }
+}
+```
+- 여기까지 했으면 빈 `EmployeeType`을 제거할 수도 있다. 하지만 다양한 서브클래스의 접점이 되어서 관계를 알려주기 때문에, 그냥 두는게 좋다. 
+- 그리고 `EmployeeType`클래스는 공통 기능을 옮겨놓기에도 편하다. 예를들어 `Employee`클래스의 `capitalizedType()`메서드는 `EmployeeType`에서 해주는게 편하다.
+```js
+class EmployeeType {
+  get capitalizedName() {
+    return this.toString().charAt(0).toUpperCase() + this.toString().substr(1).toLowerCase();
+  }
+}
+
+class Employee {
+  toString() {
+    return `${this._name}(${this.type.capitalizedType})`;
+  }
+}
+```
+
+<br>
+
 ### 12.7 서브클래스 제거하기
 ### 12.8 슈퍼클래스 추출하기
 ### 12.9 계층 합치기
