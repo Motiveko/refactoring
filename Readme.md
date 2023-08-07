@@ -5153,6 +5153,137 @@ class Employee {
 <br>
 
 ### 12.7 서브클래스 제거하기
+```js
+// AS-IS
+class Person {
+  get genderCode() { return 'X'; }
+}
+class Male extends Person {
+  get genderCode() { return 'M'; }
+}
+class Female extends Person {
+  get genderCode() { return 'F'; }
+}
+
+// TO-BE
+class Person {
+  get genderCode() { return this._genderCode; }
+}
+```
+
+<br>
+
+### 12.7.1 설명
+- 서브클래싱은 원래 데이터 구조와 다른 변종을 만들거나, 종류에 따라 동작이 달라지게 하는 유용한 메커니즘이다. 그런데 시간이 지나면서 변종이 다른 모듈로 이동하거나 해서 서브클래스가 더이상 필요가 없을 때가 있다. 서브클래스는 거추장스럽고, 코드를 이해하기 어렵게만 만들게 되는 것이다. 이 때 `서브클래스 제거하기`를 한다.
+
+<br>
+
+### 12.7.2 절차
+1. 서브클래스의 생성자를 `팩터리 함수로 바꾼다.(11.8)`
+2. 서브클래스의 타입을 검사하는 코드가 있다면, 그 검사 코드에 `함수 추출하기(6.1)`와 `함수 옮기기(8.1)`를 적용해 슈퍼클래스로 옮긴다.
+3. 서브클래스의 타입을 나타내는 필드를 슈퍼클래스에 만든다.
+4. 서브클래스를 참조하는 메서드가 방금 만든 타입 필드를 이용하도록 수정한다.
+5. 서브클래스를 지운다.
+6. 테스트한다.
+
+### 12.7.3 예시
+- `Person` 클래스를 리팩토링한다.
+```js
+class Person {
+  constructor(name) {
+    this._name = name;
+  }
+  get name() {return this._name;}
+  get genderCode() {return 'X';}
+}
+
+class Male extends Person {
+  get genderCode() {return 'M';}
+}
+
+class Female extends Person {
+  get genderCode() {return 'F';}
+}
+
+// 클라이언트
+function loadFromData(data) {
+  const result = [];
+  data.forEach(aRecord => {
+    let p;
+    switch(aRecord.gender) {
+      case 'M': p = new Male(aRecord.name); break;
+      case 'F': p = new Female(aRecord.name); break;
+      default: p = new Person(aRecord.name);
+    }
+    result.push(p);
+  });
+  return result;
+}
+
+const numberOfMales = people.filter(p => p instanceof Male).length
+```
+- 서브클래스가 하는 일이 타입코드 구분밖에 없다면 존재이유가 없다.
+- ***무언가의 표현 방법을 바꿀 때, 먼저 현재의 표현을 캡슐화하여 이 변화가 클라이언트 코드에 주는 영향을 최소화 해야 한다.*** 1: 서브클래스 만들기의 캡슐화는 `생성자를 팩터리 함수로 바꾸기(11.8)`이다.
+```js
+function loadFromData(data) {
+  return data.map(aRecord => createPerson(aRecord));
+}
+
+function createPerson(aRecord) {
+  switch(aRecord.gender) {
+    case 'M': return new Male(aRecord.name);
+    case 'F': return new Female(aRecord.name);
+    default: return new Person(aRecord.name);
+  }
+}
+```
+- `변수 인라인(6.4)`, `반복문을 파이프라인으로 바꾸기(8.6)`등도 적용했다.
+- `numberOfMales`에서는 `instanceof`를 쓰고 있다. 구린내가 난다. 2: 타입 검사 코드를 `함수로 추출(6.1)`한 후 Person으로 옯긴다.(`함수 옮기기(8.1)`)
+```js
+class Person {
+  ...
+  get isMale() {
+    return this instanceof Male; 
+  }
+}
+
+...
+
+const numberOfMales = people.filter(p => p.isMale).length
+```
+- 3: 서브클래스에 성별 코드를 추가한다. 이건 생성자 매개변수로 받아 설정해야 한다.
+```js
+class Person {
+  constructor(name, genderCode) {
+    this._name = name;
+    this._genderCode = genderCode || 'X';
+  }
+  get genderCode() {return this._genderCode; }
+}
+```
+- 4: 그 뒤 서브클래스를 참조하는 메서드가 방금 만든 타입 필드를 쓰도록 한다. => 남성인 경우의 로직을 슈퍼클래스를 옮긴다. (Male/Female의 생성자, `instanceof Male`)
+```js
+function createPerson(aRecord) {
+  switch(aRecord.gender) {
+    case 'M': return new Person(aRecord.name, 'M');
+    case 'F': return new Person(aRecord.name, 'F');
+    default: return new Person(aRecord.name, 'X');
+  }
+}
+class Person {
+  constructor(name, genderCode) {
+    this._name = name;
+    this._genderCode = genderCode ;
+  }
+  get genderCode() {return this._genderCode; }
+}
+```
+- 5: 서브클래스를 제거하고, 6: 테스트한다
+
+> 배운점: 클라코드 리팩토링 시 캡슐화가 중요하다.(생성자 => 팩터리 함수 등..) 여기저기서 산발적으로 쓰일 수 있는 코드는 캡슐화를 미리미리 해놔야 이런 변경에 자유롭다는걸 느낀다.(서브클래스 생성자, 타입코드 필드에 따른 분기처리, 기타 등등..) 리팩터링 할 때 하면 역시나 손이 많이간다.
+
+<br>
+
 ### 12.8 슈퍼클래스 추출하기
 ### 12.9 계층 합치기
 ### 12.10 서브클래스를 위임으로 바꾸기
