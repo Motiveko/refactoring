@@ -5285,6 +5285,154 @@ class Person {
 <br>
 
 ### 12.8 슈퍼클래스 추출하기
+```js
+// AS-IS
+class Department {
+  get totalAnnualCost() {...}
+  get name() {...}
+  get haedCount() {...}
+}
+class Employee {
+  get annualCost() {...}
+  get name() {...}
+  get id() {...}
+}
+
+// TO-BE
+class Party {
+  get name() {...}
+  get annualCost() {...}
+}
+class Department extends Party {
+  get annualCost() {...}
+  get haedCount() {...}
+}
+class Employee extends Party {
+  get annualCost() {...}
+  get id() {...}
+}
+```
+
+<br>
+
+### 12.8.1 설명
+- 비슷한 일을 하는 두 클래스가 있으면 상속 메커니즘을 이용해 비슷한 부분(필드, 메서드)을 슈퍼클래스로 옮길 수 있다.
+- 슈퍼클래스 추출하기의 대안으로 `클래스 추출하기(7.5)`가 있다. 이는 중복을 `위임`으로 해결하는 것이다. 둘 중 적절한걸 선택하면 된다.
+
+<br>
+
+### 12.8.2 절차
+1. 빈 슈퍼클래스를 만들고 원래 클래스가 이를 상속하게 한다.
+2. 테스트
+3. `생성자 본분 올리기(12.3)`, `메서드 올리기(12.1)`, `필드 올리기(12.2)`를 차례로 적용해 공통 원소를 슈퍼클래스로 옮긴다.
+4. 서브클래스에 남은 메서드들을 검토한다. 공통되는 부분이 있으면 `함수로 추출(6.1)`한 다음 `메서드 올리기(12.1)`을 적용한다.
+5. 원래 클래스들을 사용하는 코드를 검토하여 슈퍼클래스의 인터페이스를 사용하게 할지 고민해본다. 
+
+<br>
+
+### 12.8.3 예시
+- `Employee`, `Departement` 두 클래스에 '연간비용', '월간비용', '이름'이라는 공통기능이 보인다. 
+```js
+class Employee {
+  constructor(name, id, monthlyCost) {
+    this._id = id;
+    this._name = name;
+    this._monthlyCost = monthlyCost;
+  }
+  get monthlyCost() { return this._monthlyCost; } // 월간비용
+  get name() { return this._name; } // 이름
+  get id() { return this._id; }
+
+  get annualCost() { // 연간 비용
+    return this.monthlyCost * 12; 
+  }
+}
+
+class Department {
+  constructor(name, staff) {
+    this._name = name;
+    this._staff = staff;
+  }
+  get staff() { return this._staff.slice(); }
+  get name() { return this._name; } // 이름
+  get totalMonthlyCost() { // 총 월간비용
+    return this.staff 
+      .map(e => e.monthlyCost)
+      .reduce((sum, cost) => sum + cost);
+  }
+  get headCount() {
+    return this.staff.length;
+  }
+  get totalAnnualCost() { // 총 연간비용
+    return this.totalMonthlyCost * 12;
+  }
+}
+```
+- 1: 슈퍼클래스(`Party`)를 만들고 클래스들이 이를 상속하도록 한다.
+- 3: 공통부분(`name`)을 생성자본문 -> 메서드 -> 필드 올리기를 통해 슈퍼클래스로 옮긴다.
+```js
+class Party {
+  constructor(name) {
+    this._name = name;
+  }
+  get name() { return this._name; }
+}
+class Employee {
+  constructor(name, id, monthlyCost) {
+    super(name);
+    ...
+  }
+}
+class Department extends Party {
+  constructor(name, staff) {
+    super(name);
+    ...
+  }
+}
+```
+- 다음으로 구현로직이 비슷한 연간 메서드(`annualCost`)를 옮긴다. 
+  - 먼저 이름이 다른 월간/연간 비용 산출 메서드를 `함수 선언 바꾸기(6.5)`로 이름을 통일하고
+  - 구현이 같은 연간 비용 산출 메서드는 `메서드 올리기(12.1)`로 슈퍼클래스로 옮긴다. 
+- 다 하고나면 아래와 같아진다.
+```js
+class Party {
+  constructor(name) {
+    this._name = name;
+  }
+  get name() { return this._name; }
+  get annualCost() {
+    return this.monthlyCost * 12;
+  }
+}
+class Employee extends Party {
+  constructor(name, id, monthlyCost) {
+    super(name);
+    this._id = id;
+    this._monthlyCost = monthlyCost;
+  }
+  get monthlyCost() { return this._monthlyCost; }
+  get id() { return this._id; }
+}
+
+class Department extends Party {
+  constructor(name, staff) {
+    super(name);
+    this._staff = staff;
+  }
+  get staff() { return this._staff.slice(); }
+  get monthlyCost() {
+    return this.staff
+      .map(e => e.monthlyCost)
+      .reduce((sum, cost) => sum + cost);
+  }
+  get headCount() {
+    return this.staff.length;
+  }
+}
+```
+
+<br>
+
 ### 12.9 계층 합치기
 ### 12.10 서브클래스를 위임으로 바꾸기
 ### 12.11 슈퍼클래스를 위임으로 바꾸기
