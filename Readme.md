@@ -5434,5 +5434,586 @@ class Department extends Party {
 <br>
 
 ### 12.9 계층 합치기
-### 12.10 서브클래스를 위임으로 바꾸기
+```js
+// AS-IS
+class Employee {...}
+class SalesPerson extends Employee {...}
+
+// TO-BE
+class Employee {...}
+```
+
+<br>
+
+### 12.9.1 설명
+- 클래스 계층구조를 만들고 시간이 지나다 보면 자식클래스와 부모클래스가 거의 같아서 상속이 필요없는 경우도 생긴다. 둘을 하나로 합치면 된다.
+
+<br>
+
+### 12.9.2 절차
+1. 두 클래스 중 제거할 것을 고른다(이름이 좋은걸로)
+2. 필드/메서드 올리기/내리기를 적용해서 모든 요소를 하나의 클래스로 합친다.
+3. 제거할 클래스를 참조하던 모든 코드를 남겨질 클래스를 참조하도록 바꾼다.
+4. 빈 클래스를 제거한다.
+5. 테스트한다.
+
+<br>
+
+### 12.10 🔥 서브클래스를 위임으로 바꾸기
+```js
+// AS-IS
+class Order {
+  get daysToShip() {
+    return this._warehouse.daysToShip;
+  }
+}
+class PriorityOrder extends Order {
+  get daysToShip() {
+    return this._priorityPlan.daysToShip;
+  }
+}
+
+// TO-BE
+class Order {
+  get daysToShip() {
+    return (this._priorityDelegate)
+      ? this._priorityDelegate.daysToShip
+      : this._warehouse.daysToShip;
+  }
+}
+class PriorityDelegate {
+  get daysToShip() {
+    return this._priorityPlan.daysToShip;
+  }
+}
+```
+
+<br>
+
+### 12.10.1 설명
+> 거의 같은 디자인 패턴 : [Strategy Pattern](https://gmlwjd9405.github.io/2018/07/06/strategy-pattern.html) => `Delegate` 객체 만들어서 위임하듯이 `Strategy` 객체를 만들어서 동작을 위임한다.
+
+
+- 공통 데이터와 동작을 슈퍼클래으세 모으는 `상속`에는 단점이 있다. 한 번만 쓸 수 있다는 것이다.
+  - 무언가가 달라지는 이유가(type code, subclass)여러개여도 그중 단 하나의 이유만 선택해 기준을 삼아야 한다. (ex 사람 객체를 '나이대'와 '소득 수준'에 따라 나누고싶다면 서브클래스는 젊은이와 어르신이 되거나 부자와 서민이 되어야 한다. ***둘 다가 안된다!***)
+  - 또, 상속은 클래스들의 관계를 아주 강하게 결합한다. 
+    - 부모 수정시 자식의 기능이 바뀔수있다. 따라서 자식이 부모를 어떻게 상속해서 쓰는지 잘 이해하고 변경해야만 한다. 이 클래스들의 개발 주체가 다르다면?
+
+- `위임(delegate)`는 이 문제를 모두 해결해준다. ***상속보다 결합도가 훨씬 약하다.*** 
+- "(클래스) 상속보다는 (객체) 컴포지션을 사용하라!" 라는 말이 있다. composition은 위임과 같은 말이다. 상속을 쓰면 안된다는 말은 아니고, ***'상속으로 접근하다가 문제가 생기면 위임으로 갈아타라'***는 말이다.
+- 서브클래스를 위임으로 바꾸는 모든 경우 **위임을 계층구조로 설계할 필요는 없다.** 하지만 위임에 계층구조를 쓰면 유용할 때가 많다.
+
+<br>
+
+### 12.10.2 절차
+1. 생성자를 호출하는 곳이 많다면 `생성자를 팩터리 함수로 바꾼다.(11.8)`
+2. 위임으로 활용할 빈 클래스를 만든다. ***이 클래스의 생성자는 서브클래스에 특화된 데이터를 전부 받아야 하며, 보통은 슈퍼클래스를 가리키는 `역참조(back reference)`도 필요하다.***
+3. 위임을 저장할 필드를 슈퍼클래스에 추가한다.
+4. 서브클래스 생성 코드를 수정하여 위임 인스턴스를 생성하고 위임 필드에 대입해 초기화한다.
+  - 보통 이건 팩터리 함수에서 한다. 서브클래스가 생성할 위임 인스턴스가 명확하다면 생성자 내부에서 해도 된다.
+5. 서브클래스의 메서드 중 위임 클래스로 이동할 것을 고른다.
+6. `함수 옮기기(8.1)`를 적용해 위임 클래스로 옮긴다. 원래 메서드에서 위임하는 코든는 냅둔다.
+  - 이 메서드가 사용하는 원소 중 위임으로 옴ㄹ겨야 하는게 있으면 함께 옮긴다.
+
+7. 서브클래스 외부에도 원래 메서드를 호출하는 코드(method overriding 한거라면..)가 있다면 서브클래스의 위임 코드를 슈퍼클래스로 옮긴다. 이 때 위임이 존재하는지 검사하는 보호코드로 감싸야 한다. 호출하는 외부 코드가 없으면 원래 메서드는 죽은 코드이므로 제거한다.
+8. 테스트
+9. 서브클래스의 모든 메서드가 옮겨질 때까지 5~8 반복한다.
+10. 서브클래스들의 생성자를 호출하는 코드를 찾아서 슈퍼클래스의 생성자를 사용하도록 수정한다.
+11. 테스트
+12. 서브클래스를 삭제한다.
+
+<br>
+
+### 12.10.3 예시
+1. 서브클래스가 하나일 때, 위임에 계층구조가 필요없다
+- 공연에 대해 일반 예약(`Booking`)과 돈을 더 내는 프리미엄 예약(`PremiumBooking`)이 있다. 상속 구조를 가진다.
+```js
+class Booking {
+  constructor(show, date) {
+    this._show = show;
+    this._date = date;
+  }
+
+  get hasTalkback() {
+    return this._show.hasOwnProperty('talkback') && !this.isPeakDay;
+  }
+  get basePrice() {
+    let result = this._show.price;
+    if(this.isPeakDay) result += Math.round(result * 0.15);
+    return result;
+  }
+}
+
+class PremiumBooking extends Booking {
+  constructor(show, date, extras) {
+    super(show, date);
+    this._extras = extras;
+  }
+
+  get hasTalkback() { // 구현이 다름
+    return this._show.hasOwnProperty('talkback');
+  }
+  get basePrice() { // super 클래스 참조해서 새로운 구현
+    return Math.round(super.basePrice + this._extras.premiumFee);
+  }
+  get hasDinner() {// 프리미엄만 제공하는 기능
+    return this._extras.hasOwnProperty('dinner') && !this.isPeakDay;
+  }
+}
+
+// 클라이언트
+aBooking = new Booking(show, date);
+aBooking = new PremiumBooking(show, date, extras);
+```
+- 예약 객체들이 상속으로 잘 구현되었다. 지금은 문제가 없지만 아래와 같은 경우 문제가 생길 수 있다.
+  - 상속을 사용해야 할 다른 이유가 생길 경우(서브클래스로 나누려는 새로운 기준의 대두)
+  - `Booking` <-> `PremiumBooking`의 동적으로 전환해야 하는 경우( `aBooking.bePremium()` 같은 방식으로 바꾸고 싶다)
+    - 완전히 새로운 인스턴스를 생성하는 방식으로도 할 수 있지만, 데이터 구조를 수정해야 하는 경우도 발생하기 마련이다.
+- 대충 이런경우에 서브클래스를 위임으로 바꾸면 좋다
+- 1: 생성자를 팩터리 함수로 바꾼다.
+```js
+function createBooking(show, date) {
+  return new Booking(show, date);
+}
+
+function createPremiumBookin(show, date, extras) {
+  return new PremiumBooking(show, date, extras); 
+}
+// 클라이언트
+aBooking = createBooking(show, date);
+aBooking = createPremiumBookin(show, date, extras);
+```
+- 2: 위임 클래스를 만든다. 서브클래스가 사용하던 매개변수와 예약 객체로의 역참조를 매개변수로 받는다
+```js
+class PremiumBookingDelegate {
+  constructor(hostBooking, extras) {
+    this._host = hostBooking;
+    this._extras = extras;
+  }
+}
+```
+- 3,4: 새로운 위임을 예약 객체와 연결한다. 프리미엄 예약을 생성하는 팩터리함수를 수정해야 한다.
+```js
+class Booking {
+  _bePremium(extras) {
+    this._premiumDelegate = new PremiumBookingDelegate(this, extras);
+  }
+}
+function createPremiumBookin(show, date, extras) {
+  const result = new PremiumBooking(show, date, extras); 
+  result._bePremium(extras);
+  return result;
+}
+```
+- `_bePremium()`으로 _를 붙임으로서 이 메서드가 나중에 Booking의 공개 인터페이스가 되면 안된다는 의도를 밝힌다. 만약 리팩터링의 목적이 일반 예약과 프리미엄 예약을 동적으로 변환할 수 있게 하는거라면 이 메서드는  public이어도 된다.
+
+<br>
+
+- 5: 기능을 옮긴다. 쉬운 순서대로 한다. 먼저 `hasTalkback()`이다. 
+  - 6: `함수 옮기기(8.1)`를 이용해 메서드를 위임으로 옮기고 슈퍼클래스의 데이터를 참조하는건 `_host`를 통하도록 고친다.
+  - 7: 테스트하고 서브클래스의 `hasTalkback()`은 삭제한다.
+  - 8: 슈퍼클래스에서 위임이 존재하면 위임을 사용하는 분배로직을 `hasTalkback()`에 추가한다.
+```js
+// 6
+class PremiumBookingDelegate {
+  get hasTalkback() {
+    return this._host._show.hasOwnProperty('talkback');
+  }
+}
+
+// 7 삭제..
+
+// 8
+class Booking {
+  get hasTalkback() {
+    return this._premiumDelegate 
+      ? this._premiumDelegate.hasTalkback 
+      : this._show.hasOwnProperty('talkback') && !this.isPeakDay;
+  }
+}
+```
+
+<br>
+
+- 5: 다음으로 `basePrice()`다. `super`를 호출하는 부분이 다르다. 앞선 `hasTalback()`과 같이 `this._host.basePrice`를 호출하는 식으로 바뀌면 무한 재귀에 빠진다.아래와 같은 선택지가 있다.
+  - 슈퍼클래스의 계산 로직을 `함수로 추출(6.4)`하여, ***가격 계산과 분배 로직을 분리하는 방식***
+    ```js
+    class Booking {
+      get basePrice() { // 위임로직
+        return this._premiumDelegate
+          ? this._premiumDelegate.basePrice 
+          : this._privateBasePrice;
+      }
+      
+      get _privateBasePrice() { // basePrice 계산 로직
+        let result = this._show.price;
+        if(this.isPeakDay) result += Math.round(result * 0.15);
+        return result;
+      }
+    }
+
+    class PremiumBookingDelegate {
+      get basePrice() {
+        return Math.round(this._host._privateBasePrice + this._extras.premiumFee);
+      }
+    }
+    ```
+  - ***위임의 메서드를 기반 메서드의 확장 형태로 재호출***
+    ```js
+    class Booking {
+      get basePrice() {
+        let result = this._show.price;
+        if(this.isPeakDay) result += Math.round(result * 0.15);
+        return this._premiumDelegate 
+          ? this._premiumDelegate.extendBasePrice(result)
+          : result;
+      }
+    }
+
+    class PremiumBookingDelegate {
+      extendBasePrice(base) { // 기반 메서드의 확장 형태!
+        return Math.round(base + this._extras.premiumFee);
+      }
+    }
+    ```
+  - 둘 다 상관없으나, 저자는 코드가 짧다는 이유로 후자를 선호한다고 한다.(메서드 수가 적다!)
+
+<br>
+
+- 5: 마지막으로 서브클래스에만 존재하는 메서드 `hasDinner()`를 옮긴다.
+  - 수퍼클래스(Booking)에는 `hasDinner()`은 없던 메서드이기 때문에 구현해줘야 한다.
+  - 위임이 없을 경우 undefined를 반환한다. 다른 객체지향 언어라면 에러를 던졌을 테지만, ***js에서는 존재하지 않는 속성에 접근하면 `undefined`를 반환하는게 기본동작이기 때문에 이걸 따른다.***
+```js
+class Booking {
+  get hasDinner() {
+    return this._premiumDelegate
+      ? this._premiumDelegate.hasDinner
+      : undefined;
+  }
+}
+
+class PremiumBookingDelegate {
+  get hasDinner() {
+    return this._extras.hasOwnProperty('dinner') && !this.isPeakDay;
+  }
+}
+```
+- 10~12: 서브클래스의 동작을 모두 옮겼기 때문에 팩터리 메서드가 슈퍼클래스를 반환하도록 하고, 테스트 후 서브클래스는 삭제한다!
+```js
+function createPremiumBookin(show, date, extras) {
+  const result = new Booking(show, date); 
+  result._bePremium(extras);
+  return result;
+}
+```
+- 코드가 좀 복잡해진것처럼 보일 수도 있으나, **예약을 동적으로 프리미엄 예약으로 바꿀 수 있고, 상속은 다른 목적으로 사용할 수 있게 되었다는 장점을 얻었다.**
+
+<br>
+
+2. 서브클래스가 여러 개일 때(위임에 계층구조 적용)
+```js
+function createBird(data) {
+  switch (data.type) {
+    case '유럽 제비':
+      return new EuropeanSwallow(data);
+    case '아프리카 제비':
+      return new AfricanSwallow(data);
+    case '노르웨이 파랑 앵무':
+      return new NorwegianBlueParrot(data);
+    default:
+      return new Bird(data);
+  }
+}
+
+class Bird {
+  constructor(data) {
+    this._name = data.name;
+    this._plumage = data.plumage;
+  }
+  get name() {return this._name;}
+  get plumage() {
+    return this._plumage || '보통이다';
+  }
+  get airSpeedVelocity() {return null;}
+}
+class EuropeanSwallow extends Bird {
+  get airSpeedVelocity() {return 35;}
+}
+class AfricanSwallow extends Bird {
+  constructor(data) {
+    super(data);
+    this._numberOfCoconuts = data.numberOfCoconuts;
+  }
+  get airSpeedVelocity() {
+    return 40 - 2 * this.numberOfCoconuts;
+  }
+}
+class NorwegianBlueParrot extends Bird {
+  constructor(data) {
+    super(data);
+    this._voltage = data.voltage;
+    this._isNailed = data.isNailed;
+  }
+  get plumage() {
+    if(this._voltage > 100) return '그을렸다';
+    else return this._plumage || '예쁘다';
+  }
+  get airSpeedVelocity() {
+    return (this._isNailed) ? 0 : 10 + this._voltage / 10;
+  }
+}
+```
+- 조류 객체는 종으로 서브클래싱 되어있다. 이 코드를 야생조류(`WildBird`)와 사육조류(`CaptivityBird`)로 구분지어 서브클래싱 하기 위해 크게 수정될 예정이다. ***상속은 한번 만 쓸 수 있기 때문에, 현재의 종에 따른 분류를 포기해야 한다.*** 상속을 위임으로 바꿔야 한다.
+
+<br>
+
+- 간단한 것 부터 하나씩 진행한다. `EuropeanSwallow`가 제일 쉽다.
+  - 2: 위임 객체(`EuropeanSwallowDelegate`)를 만들고
+  - 3,4: 위임 필드를 슈퍼클래스에 저장하는 코드를 추가하고(여기선 생성자에서 `selectSpeciesDelegate()`를 통해 한다.)
+  - 5,6: 서브클래스 메서드를 위임에 옮긴다. 
+  - 10~12: 서브클래스 생성자 호출을 슈퍼클래스 생성자 호출로 바꾸고 서브클래스 제거한다.
+  - 슈퍼클래스 참조도 없는 간단한거라 한번에 한다.
+```js
+class Bird {
+  constructor(data) {
+    this._name = data.name;
+    this._plumage = data.plumage;
+    this._speciesDelegate = this.selectSpeciesDelegate(data); // 4
+  }
+  selectSpeciesDelegate(data) { // 3
+    switch(data.type) {
+      case '유럽 제비':
+        return new EuropeanSwallowDelegate();
+      default: return null;
+    }
+  }
+  get airSpeedVelocity() {
+    return this._speciesDelegate ? this._speciesDelegate.airSpeedVelocity : null;
+  }
+}
+
+class EuropeanSwallowDelegate { // 2
+  get airSpeedVelocity() {return 35;} // 5~6
+}
+
+// EuropeanSwallow 클래스는 제거 ( 10~12 )
+function createBird(data) {
+  switch (data.type) {
+    case '아프리카 제비':
+      return new AfricanSwallow(data);
+    case '노르웨이 파랑 앵무':
+      return new NorwegianBlueParrot(data);
+    default:
+      return new Bird(data);
+  }
+}
+```
+
+<br>
+
+- 다음으로 `AfricanSwallow` 차례다
+  - 차이로는 서브클래스에서만 가지고 있던 데이터(`numberOfCoconuts`)를 위임에서도 쓸 수 있게 생성자로 전달한다는 점이다.
+```js
+class Bird {
+  selectSpeciesDelegate(data) {
+    switch(data.type) {
+      case '유럽 제비':
+        return new EuropeanSwallowDelegate();
+      case '아프리카 제비':
+          return new AfricanSwallowDelegate(data);  // 3
+      default: return null;
+    }
+  }
+}
+class AfricanSwallowDelegate { // 2
+  // 위임의 생성자에서 서브클래스에서 참조하던 데이터(numberOfCoconuts)를 받는다.
+  constructor(data) { // 5~6
+    this._numberOfCoconuts = data.numberOfCoconuts;
+  }
+  get airSpeedVelocity() { // 5~6
+    return 40 - 2 * this.numberOfCoconuts;
+  }
+}
+
+// 서브클래스 제거 10~12
+function createBird(data) { 
+  switch (data.type) {
+    case '노르웨이 파랑 앵무':
+      return new NorwegianBlueParrot(data);
+    default:
+      return new Bird(data);
+  }
+}
+```
+
+<br>
+
+- 다음은 `NorwegianBlueParrot`이다
+```js
+class Bird {
+  selectSpeciesDelegate(data) {
+    switch(data.type) {
+      case '유럽 제비':
+        return new EuropeanSwallowDelegate();
+      case '아프리카 제비':
+          return new AfricanSwallowDelegate(data);
+      case '노르웨이 파랑 앵무':
+          return new NorwegianBlueParrotDelegate(data, this);
+      default: return null;
+    }
+  }
+  get plumage() {
+    return this._plumage || '보통이다';
+  }
+}
+class NorwegianBlueParrot extends Bird {
+  get plumage() {
+    return this._speciesDelegate.plumage;
+  }
+}
+
+class NorwegianBlueParrotDelegate {
+  constructor(data, bird) {
+    this.bird = bird; // 슈퍼클래스 역참조
+    this._voltage = data.voltage;
+    this._isNailed = data.isNailed;
+  }
+  
+  get plumage() {
+    if(this._voltage > 100) return '그을렸다';
+    else return this._bird._plumage || '예쁘다';
+  }
+
+  get airSpeedVelocity() {
+    return (this._isNailed) ? 0 : 10 + this._voltage / 10;
+  }
+}
+```
+  - 까다로운 점은 `NorwegianBlueParrot`이 오버라이드 하는 `plumage()`를 어떻게 제거할 것이냐다. 
+    1. 이렇게하면 `plumage()`가 없는 Delegate에서 오류가 난다. 
+        ```js
+        class Bird {
+          get plumage() {
+            if(this._speciesDelegate)
+              return this._speciesDelegate.plumage;
+            else 
+              return this._plumage || '보통이다';
+          }
+        }
+        ```
+    2. 위임이 `NorwegianBlueParrotDelegate` 타입 객체인지 검사하는 방식으로 처리
+          ```js
+          class Bird {
+            get plumage() {
+              if(this._speciesDelegate instanceof NorwegianBlueParrotDelegate) 
+                return this._speciesDelegate.plumage;
+              else 
+                return this._plumage || '보통이다';
+            }
+          }
+          ```
+      - 이렇게 `instanceof NorwegianBlueParrotDelegate`로 클래스를 꼭 집어서 검사하는건 절대 좋지 않다.(악취가 난다)
+    3. 기본값을 두고, `NorwegianBlueParrot`만 따로 취급하는 방법
+        ```js
+        class Bird {
+          get plumage() {
+            if(this._speciesDelegate)
+              return this._speciesDelegate.plumage;
+            else 
+              return this._plumage || '보통이다';
+          }
+        }
+        class EuropeanSwallowDelegate {
+          get plumage() {
+            return this._plumage || '보통이다';
+          }
+        }
+        class AfricanSwallowDelegate {
+          get plumage() {
+            return this._plumage || '보통이다';
+          }
+        }
+        ```
+        - 기본 메서드가 여러 Delegate클래스에 중복되어야 한다. 몇몇 생성자에서 역참조 대입하는 코드도 중복될 수 있다.
+      4. 이 중복을 해결하는 자연스러운 방법이 `상속`이다. 위임 객체들을 계층구조로 만든다.
+          ```js
+          function createBird(data) {
+            return new Bird(data);
+          }
+
+          class Bird {
+            constructor(data) {
+              this._name = data.name;
+              this._plumage = data.plumage;
+              this._speciesDelegate = this.selectSpeciesDelegate(data);
+            }
+            selectSpeciesDelegate(data) {
+              switch(data.type) {
+                case '유럽 제비':
+                  return new EuropeanSwallowDelegate(data, this);
+                case '아프리카 제비':
+                  return new AfricanSwallowDelegate(data, this);
+                case '노르웨이 파랑 앵무':
+                  return new NorwegianBlueParrotDelegate(data, this);
+                default: 
+                  return new SpeciesDelegate(data, this);
+              }
+            }
+            get name() {return this._name;}
+            get plumage() { this._speciesDelegate.plumage;}
+            get airSpeedVelocity() {
+              return this.this._speciesDelegate.airSpeedVelocity;
+            }
+          }
+
+          class SpeciesDelegate {
+            constructor(data, bird) {
+              this._bird = bird;
+            }
+            get plumage() {
+              return this._bird._plumage || '보통이다.';
+            }
+            get airSpeedVelocity() {
+              return null;
+            }
+          }
+
+          class EuropeanSwallowDelegate extends SpeciesDelegate {
+            get airSpeedVelocity() {return 35;}
+          }
+
+          class AfricanSwallowDelegate extends SpeciesDelegate{
+            constructor(data, bird) {
+              super(data, bird)
+              this._numberOfCoconuts = data.numberOfCoconuts;
+            }
+            get airSpeedVelocity() {
+              return 40 - 2 * this.numberOfCoconuts;
+            }
+          }
+
+          class NorwegianBlueParrotDelegate extends SpeciesDelegate{
+            constructor(data, bird) {
+              super(data, bird);
+              this._voltage = data.voltage;
+              this._isNailed = data.isNailed;
+            }
+            
+            get plumage() {
+              if(this._voltage > 100) return '그을렸다';
+              else return super.plumage || '예쁘다';
+            }
+
+            get airSpeedVelocity() {
+              return (this._isNailed) ? 0 : 10 + this._voltage / 10;
+            }
+          }
+          ```
+        - 위임 객체들이 `SpeciesDelegate`를 상속하도록 했다. 기본 동작은 모두 `SpeciesDelegate`에 넣었고 Bird에서도 `selectSpeciesDelegate`에서 기본으로 `SpeciesDelegate`를 생성하도록 했다. ***위임 객체가 무조건 있기 때문에 위임 객체 존재 여부 검사 로직도 필요가 없어졌다! 상속 구조로 기본 동작의 반복도 제거된다!*** 
+
+<br>
+
+- 원래의 서브클래스들을 위임 구조로 교체했지만 `SpeciesDelegate`에는 여전히 처음 구조와 매우 비슷한 계층구조가 존재한다. ***옮겨진 종 계층구조는 더 엄격하게 종과 관련된 내용만 다루게 되었다.*** 종과 관련된 내용만 위임에 남고, 종과 상관없는 공통 코드는 `Bird`와 미래의 서브클래스들에 남는다!
+
 ### 12.11 슈퍼클래스를 위임으로 바꾸기
+
