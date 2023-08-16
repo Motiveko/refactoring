@@ -6016,4 +6016,99 @@ class NorwegianBlueParrotDelegate {
 - 원래의 서브클래스들을 위임 구조로 교체했지만 `SpeciesDelegate`에는 여전히 처음 구조와 매우 비슷한 계층구조가 존재한다. ***옮겨진 종 계층구조는 더 엄격하게 종과 관련된 내용만 다루게 되었다.*** 종과 관련된 내용만 위임에 남고, 종과 상관없는 공통 코드는 `Bird`와 미래의 서브클래스들에 남는다!
 
 ### 12.11 슈퍼클래스를 위임으로 바꾸기
+```js
+// AS-IS
+class List {...}
+class Stack extends List {...}
+
+// TO-BE
+class Stack {
+  constructor() {
+    this._storage = new List();
+  }
+}
+class List {...}
+```
+
+<br>
+
+### 12.11.1 설명
+- 상속이 잘못 사용된 대표적인 예는 Java의 `Stack`클래스다.
+  - `List`의 인터페이스는 분명 `Stack`과 차이가 있는데, `Stack`이 `List`를 상속함으로써 `List`의 모든 인터페이스가 노출된다.
+- 슈퍼클래스의 모든 기능들이 서브클래스에 어울리지 않는다면, 그 기능을 상속을 통해 이용하면 안된다는 신호다!
+- 제대로된 상속이라면 서브클래스의 인스턴스를 슈퍼클래스의 인스턴스로 취급할 수 있어야 한다.
+- 서브클래스 방식 모델링이 합리적일 때에도 슈퍼클래스로 바꾸기도 한다.
+  - 슈퍼/서브 클래스는 강결합된 상태라, 슈퍼클래스 수정시 서브클래스가 쉽게 망가지기 때문이다.
+- 위임의 단점은, 사용할 호스트의 함수를 모두 전달 함수(fowarding function)으로 만들어야 한다는 것이다. 귀찮은 일이다.
+
+<br>
+
+### 12.11.2 절차
+1. 슈퍼클래스 객체를 참조하는 필드를 서브클래스에 만든다. 이 위임 참조를 새로운 슈퍼클래스 인스턴스로 초기화한다.
+2. 슈퍼클래스의 동작 각각에 대응하는 전달 함수를 서브클래스에 만든다.
+3. 슈퍼클래스의 동작 모두가 전달 함수로 오버라이드 되었다면 상속 관계를 끊는다.
+
+<br>
+
+### 12.11.3 예시
+- 고문서 도서관의 데이터 예시다.
+- 고문서 두루마리(`Scroll`)과 이를 논리적으로 분류하는 카탈로그(`CatalogItem`) 클래스가 있다.두루마리는 사본이 있을수 있다.
+```js
+class CatalogItem {
+  constructor(id, title, tags) {
+    this._id = id;
+    this._title = title;
+    this._tags = tags;
+  }
+  get id() { return this._id; }
+  get title() { return this._title; }
+  hasTag(arg) { return this._tags.includes(arg); }
+}
+
+class Scroll extends CatalogItem {
+  constructor(id, title, tags, dateLastCleaned) {
+    super(id, title, tags);
+    this._lastCleaned = dateLastCleaned;
+  }
+  needsCleaning(targetDate) {
+    const threshold = this.hasTag('revered') ? 700 : 1500;
+    return this.daysSinceLastCleaning(targetDate) > threshold;
+  }
+  daysSinceLastCleaning(targetDate) {
+    return this._lastCleaned.until(targetDate, ChronoUnit.DAYS);
+  }
+}
+```
+- 모델링에서 실수는, Scroll과 CatalogItem에 차이가 있다는 것이다. 스크롤 사본이 여러개임에도 카탈로그 아이템은 하나뿐인 경우다. (왜 문젠지 아직 이해는 안간다..)
+- 위임으로 변경한다.
+```js
+class Scroll {
+  constructor(id, title, tags, dateLastCleaned) {
+    this._catalogItem = new CatalogItem(id, title, tags); // 위임 참조 추가
+    this._lastCleaned = dateLastCleaned;
+  }
+  
+  ...
+
+  // forwarding functions 추가..
+  get id() { return this._catalogItem._id; } 
+  get title() { return this._catalogItem._title; }
+  hasTag(arg) { return this._catalogItem._tags.includes(arg); }
+}
+```
+- 더 개선할 점이 있다. Scroll은 CatalogItem의 고유 인스턴스를 하나식 갖게 되었다. 하지만 더 나은 모델이 있다. 사본 Scroll이 모두 하나의 CatalogItem을 참조하게 하는 것이다. `값을 참조로 바꾸기(9.5)`를 적용한다는 것이다. (상속에서 위임으로 바꾼 원인을 다시 깨는 이유는 나도 이해가 안간다. 그냥 예제로 이해한다.)
+- 고려해야할 점은 CatalogItem이 Scroll의 id를 사용하고 있다는 점이다. 이부분을 고려해서 리팩터링 해보면 아래와 같다.
+```js
+class Scroll {
+  constructor(id, dateLastCleaned, catalogID, catalog) {
+    this._id = id;
+    this._catalogItem = catalog.get(catalogID);
+    this._lastCleaned = dateLastCleaned;
+  }
+  ...
+}
+```
+- Scroll 생성자에 넘겨준 id는 Scroll의 id다. 나머지 CatalogItem 관련인자는 제거하고, 새로운 catalogID, catalog(레포지토리 같은 객체인듯)인자를 전달해서 CatalogItem 인스턴스를 가져온다.
+
+<br>
 
